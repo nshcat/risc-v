@@ -1,0 +1,77 @@
+Imm Generator
+--------------
+
+  ImmSrc  |  Source
+---------------------
+   000    |  U-Type
+   001    |  I-Type
+   010    |  S-Type
+   011    |  B-Type
+   100    |  J-Type
+   
+
+ALU Control Unit
+----------------
+
+Inputs: funct3, funct7 from instruction, ALUControl control signal
+Outputs: ALUOp signal to ALU, ALUShamt signal to ALU multiplexer
+
+Decides based on ALUControl signal what ALUOp signal to generate.
+For certain instructions, a fixed operation is required (i.e. SUB for BEQ), and for others
+the funct3 and funct7 fields determine the operation.
+The ALUShamt signal is emitted for immediate shift instructions to use the static SHAMT field from
+the instruction as rs2 instead of the register contents.
+
+ ALUControl  |      ALUOp
+-------------------------------
+     00      |       ADD
+     01      |       SUB
+     10      |  I-Type (funct3)
+     11      |  R-Type (funct3, funct7)
+     
+
+ALUShamt = (ALUControl == 10) && (funct3 == 001 || funct3 == 101)
+
+     
+ALU
+---
+
+  ALUOp  | Operation
+-------------------
+  0000   |   ADD
+  0001   |   SUB
+  0010   |   SLL
+  0011   |   SLT
+  0100   |   SLTU
+  0101   |   XOR
+  0110   |   SRL
+  0111   |   SRA
+  1000   |   OR
+  1001   |   AND
+  
+  
+Branch Control Unit
+-------------------
+
+The control signal BranchOp selects the general branching operation:
+
+   BranchOp   |                              Operation      
+-----------------------------------------------------------------------------------
+      00      |   No branch. PC = PC + 4
+      01      |   Conditional branch. Exact type is determined by func3 field.
+      10      |   JAL
+      11      |   JALR
+      
+      
+      
+Control Unit
+-------------
+
+
+    Instruction    |  Opcode  | ImmSrc | Reg1Zero | RegWrite | ALUControl | ALUSrc | BranchOp | BusWrite | BusRead | MemToReg  
+------------------------------------------------------------------------------------------------------------------------------
+      ArithR       |  0110011 |  000   |    0     |    1     |     11     |   0    |    00    |    0     |    0    |    00
+    ArithI/ShI     |  0010011 |  001   |    0     |    1     |     10     |   1    |    00    |    0     |    0    |    00
+      CondBR       |  1100011 |  011   |    0     |    0     |     01     |   0    |    01    |    0     |    0    |    00
+       JAL         |  1101111 |  100   |    0     |    1     |     00     |   1    |    10    |    0     |    0    |    10
+       JALR        |  1100111 |  001   |    0     |    1     |     00     |   1    |    11    |    0     |    0    |    10

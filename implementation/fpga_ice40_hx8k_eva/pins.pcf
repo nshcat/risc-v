@@ -1,0 +1,44 @@
+set_io LED0 B5
+set_io LED1 B4
+set_io LED2 A2
+set_io LED3 A1
+set_io LED4 C5
+set_io LED5 C4
+set_io LED6 B3
+set_io LED7 C3
+set_io CLK  J3
+
+set_io GPIOA0 C16
+set_io GPIOA1 B16
+set_io GPIOA2 D16
+set_io GPIOA3 D14
+set_io GPIOA4 E16
+set_io GPIOA5 D15
+set_io GPIOA6 F16
+set_io GPIOA7 E14
+set_io GPIOA8 G16
+set_io GPIOA9 F15
+set_io GPIOA10 H16
+set_io GPIOA11 G15
+set_io GPIOA12 J15
+set_io GPIOA13 H14
+set_io GPIOA14 G14
+set_io GPIOA15 F14
+
+set_io INT0 N3
+set_io INT1 N2
+
+set_io TIM1_CMP T13
+set_io TIM2_CMP T14
+set_io TIM3_CMP T15
+
+
+set_io DEBUG_PC[0] T6
+set_io DEBUG_PC[1] T5
+set_io DEBUG_PC[2] R3
+set_io DEBUG_PC[3] R2
+set_io DEBUG_PC[4] T1
+set_io DEBUG_PC[5] T2
+set_io CLK_DEBUG B2
+
+set_io DEBUG_TIM_IRQ B1

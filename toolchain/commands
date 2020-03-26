@@ -1,0 +1,15 @@
+Compiling:
+riscv64-linux-gnu-gcc -nostdlib -nostartfiles -march=rv32i -mabi=ilp32 -Tlink.ld -g -o hello boot.s main2.c
+
+Viewing sections and their contents:
+riscv64-linux-gnu-objdump -s hello
+
+Viewing disassembly:
+riscv64-linux-gnu-objdump -dS hello
+
+Converting to flat ROM binary:
+riscv64-linux-gnu-objcopy -O binary -j ".text" -j ".data"  hello hello.bin
+
+Convert flat ROM binary to FPGA text file:
+xxd -g 4 -u -ps -c 4 flash.bin
+
