@@ -1,17 +1,21 @@
 #include "defines.h"
 
 
-__attribute__((naked)) void handle_ext1()
+IRQ_HANDLER void handle_tim1()
 {
 	RETI;
 }
 
 
-
 int main()
 {
-	ISR_EXT1 = IRQ_HANDLER(handle_ext1);
-	IRQ_MASK = 0x1;
+	TIM1_PRESCTH = 3U;
+	TIM1_CNTRTH = 3U;
+
+	ISR_TIM1 = IRQ_HANDLER_ADDR(handle_tim1);
+	IRQ_MASK = 0b100;
+	
+	TIM1_CNTRL = 0x1;
 	
 	while(1);
 	
