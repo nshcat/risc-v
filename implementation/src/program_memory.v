@@ -7,7 +7,7 @@ reg [31:0] memory [127:0];
 wire [6:0] internal_address = address[8:2];
 
 initial begin
-    $readmemh("./../memory/flash.bin", memory);
+    $readmemh("./../memory/flash.txt", memory);
 end
 
 wire [31:0] instruction_raw = memory[internal_address];

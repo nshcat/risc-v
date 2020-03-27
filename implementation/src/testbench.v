@@ -2,12 +2,14 @@
 
 module testbench(
     input clk,
-    input reset
+    input reset,
+    output [7:0] leds_out
 );
 
 microcontroller uut(
     .clk(clk),
-    .reset(reset)
+    .reset(reset),
+    .leds_out(leds_out)
 );
 
 

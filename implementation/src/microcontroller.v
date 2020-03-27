@@ -1,6 +1,8 @@
 module microcontroller(
     input clk,
-    input reset
+    input reset,
+
+    output [7:0] leds_out
 );
 
 // ==== Data Bus ====
@@ -24,6 +26,16 @@ data_memory dmem(
     .data_bus_data(data_bus_data),
     .data_bus_addr(data_bus_addr),
     .data_bus_mode(data_bus_mode)
+);
+
+// ==== Peripherals ====
+leds led(
+    .clk(clk),
+    .reset(reset),
+    .data_bus_data(data_bus_data),
+    .data_bus_addr(data_bus_addr),
+    .data_bus_mode(data_bus_mode),
+    .leds_out(leds_out)
 );
 
 endmodule
