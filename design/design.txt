@@ -63,6 +63,13 @@ The control signal BranchOp selects the general branching operation:
       11      |   JALR
       
       
+
+Custom Instructions
+-------------------
+
+reti: Opcode 1111111, returns from ISR.
+
+      
       
 Control Unit
 -------------

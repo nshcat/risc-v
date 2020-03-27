@@ -2,9 +2,37 @@ module datapath(
     input clk,
     input reset,
 
+    // Data bus
     inout [31:0] data_bus_data,
     output [31:0] data_bus_addr,
-    output [1:0] data_bus_mode
+    output [1:0] data_bus_mode,
+
+    // Interrupts signals
+    input [4:0] irq_sources
+);
+
+// ==== Interrupt Management ====
+reg in_isr;                 // Whether the CPU is currently inside a ISR
+reg [31:0] ipc;             // Interrupt process counter, used to restore program counter after IRQ
+
+wire [4:0] irq_mask;
+wire [31:0] irq_target;
+
+reg [4:0] stalled_irq_sample;   // Saved IRQ sample from first half of stalled LW instruction
+
+// This is a combination of both the current IRQ sources and the stored IRQs sampled
+// in the first cycle of a stalled LW instruction.
+wire [4:0] combined_irq_sources = irq_sources & stalled_irq_sample;
+
+interrupt_controller irq_cu(
+    .clk(clk),
+    .reset(reset),
+    .data_bus_data(data_bus_data),
+    .data_bus_mode(data_bus_mode),
+    .data_bus_addr(data_bus_addr),
+    .irq_sources(irq_sources),
+    .irq_mask(irq_mask),
+    .irq_target(irq_target)
 );
 
 // ==== Process counter and related ==== 
@@ -30,11 +58,44 @@ always @(posedge clk or negedge reset)
 begin
     if(!reset) begin
         pc <= 32'd0;
+        in_isr <= 1'b0;
+        stalled_irq_sample <= 5'b11111;
     end
     else begin
-        // When stalled, the PC stay the same.
-        if (!stall) begin
-            pc <= pc_next;
+        // If the CPU is currently stalling in order to execute a multi-cycle instruction, we can not
+        // allow interrupts to disrupt the current instruction execution.
+        // We therefore save all incomming IRQs in a temporary storage to be acted
+        // upon at a later stage.
+        if (stall == 1'b1) begin
+            // If we are stalling, we need to sample and store incomming IRQs
+            // to handle them at the end of the stalled instruction
+            stalled_irq_sample <= irq_sources;
+
+            // The PC will stay the same
+        end
+        else begin
+            // Check if need to return from ISR
+            if (cs_end_isr != 1'b0) begin
+                pc <= ipc;
+                in_isr <= 1'b0;
+            end
+            // Check if there was a IRQ TODO stalling!
+            else if (((~combined_irq_sources & irq_mask) != 5'b0) && (in_isr == 1'b0)) begin
+                ipc <= pc_next;
+                pc <= irq_target;
+                in_isr <= 1'b1;
+
+                // Make sure the stored IRQ sample is reset so it won't continuously
+                // fire interrupts. Not all of them might have been handled, 
+                // but the one with the highest priority has been. 
+                stalled_irq_sample <= 5'b11111;
+            end
+            else begin
+                // If the stall signal is active, we keep the current instruction active for
+                // one more cycle. The stall unit makes sure that the stall signal will not be active
+                // for more than one cycle.
+                pc <= pc_next;
+            end
         end
     end
 end
@@ -74,7 +135,7 @@ program_memory pmem(.address(pc), .instruction(instruction));
 
 // ==== Control Signals ====
 wire cs_reg_write, cs_reg_1_zero, cs_alu_src, cs_bus_read, cs_bus_write;
-wire cs_alu_shamt, cs_stall_lw;
+wire cs_alu_shamt, cs_stall_lw, cs_end_isr;
 wire [1:0] cs_alu_control, cs_branch_op, cs_mem_to_reg;
 wire [2:0] cs_imm_src;
 
@@ -89,7 +150,8 @@ control_unit cunit(
     .cs_bus_read(cs_bus_read),
     .cs_bus_write(cs_bus_write),
     .cs_imm_src(cs_imm_src),
-    .cs_stall_lw(cs_stall_lw)
+    .cs_stall_lw(cs_stall_lw),
+    .cs_end_isr(cs_end_isr)
 );
 
 // ==== Register File  ==== 
