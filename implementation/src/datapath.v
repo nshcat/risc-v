@@ -1,6 +1,10 @@
 module datapath(
     input clk,
-    input reset
+    input reset,
+
+    inout [31:0] data_bus_data,
+    output [31:0] data_bus_addr,
+    output [1:0] data_bus_mode
 );
 
 // ==== Process counter and related ==== 
@@ -28,9 +32,22 @@ begin
         pc <= 32'd0;
     end
     else begin
-        pc <= pc_next;
+        // When stalled, the PC stay the same.
+        if (!stall) begin
+            pc <= pc_next;
+        end
     end
 end
+
+// ==== Stalling logic ====
+wire stall;
+
+stall_unit su(
+    .clk(clk),
+    .reset(reset),
+    .cs_stall_lw(cs_stall_lw),
+    .stall(stall)
+);
 
 
 // ==== Instruction and parts ==== 
@@ -52,13 +69,12 @@ imm_generator immgen(
     .imm(instr_imm)
 );
 
-
 // ==== Program memory ==== 
 program_memory pmem(.address(pc), .instruction(instruction));
 
 // ==== Control Signals ====
 wire cs_reg_write, cs_reg_1_zero, cs_alu_src, cs_bus_read, cs_bus_write;
-wire cs_alu_shamt;
+wire cs_alu_shamt, cs_stall_lw;
 wire [1:0] cs_alu_control, cs_branch_op, cs_mem_to_reg;
 wire [2:0] cs_imm_src;
 
@@ -72,16 +88,19 @@ control_unit cunit(
     .cs_branch_op(cs_branch_op),
     .cs_bus_read(cs_bus_read),
     .cs_bus_write(cs_bus_write),
-    .cs_imm_src(cs_imm_src)
+    .cs_imm_src(cs_imm_src),
+    .cs_stall_lw(cs_stall_lw)
 );
 
 // ==== Register File  ==== 
 wire [31:0] write_data;
 
+wire [4:0] read_reg_1 = (cs_reg_1_zero == 1'b1) ? 5'b0 : instr_rs1;
+
 register_file registers(
     .clk(clk),
     .reset(reset),
-    .read_reg_1(instr_rs1),
+    .read_reg_1(read_reg_1),
     .read_reg_2(instr_rs2),
     .write_reg(instr_rd),
     .cs_reg_write(cs_reg_write),
@@ -126,8 +145,29 @@ alu main_alu(
     .alu_op(alu_op)
 );
 
+// ==== Data Bus Controller ====
+wire [31:0] bus_result;
+
+// Only read from bus in second cycle of stalled LW instruction.
+// The first cycle is used to give peripherals time to prepare the load and
+// present the data to the bus.
+wire read_bus = cs_bus_read & ~stall;
+
+data_bus_control_unit dbcu(
+    .cs_bus_read(read_bus),
+    .cs_bus_write(cs_bus_write),
+    .addr_in(alu_out_result),
+    .data_out(bus_result),
+    .data_in(read_data_2),
+    .data_bus_addr(data_bus_addr),
+    .data_bus_data(data_bus_data),
+    .data_bus_mode(data_bus_mode)
+);
+
+
+
 // ==== Write Back ====
-assign write_data = (cs_mem_to_reg == 2'b10) ? pc4 : alu_out_result; 
+assign write_data = (cs_mem_to_reg == 2'b10) ? pc4 : (cs_mem_to_reg == 2'b01 ? bus_result : alu_out_result);
 
 endmodule
 

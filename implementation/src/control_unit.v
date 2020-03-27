@@ -25,7 +25,8 @@ module control_unit(
     output reg [1:0] cs_mem_to_reg,    // Selects write data input for register file
     output reg [1:0] cs_branch_op,     // Branching operation
     output reg cs_bus_read,            // Causes a data bus read operation
-    output reg cs_bus_write            // Causes a data bus write operation
+    output reg cs_bus_write,           // Causes a data bus write operation
+    output reg cs_stall_lw             // Whether we need to stall because of a memory load
 );
 
 always @(opcode) begin
@@ -35,12 +36,15 @@ always @(opcode) begin
         7'b1100011: `CONTROL_SIGNALS(3'b011,  1'b0,    1'b0,    1'b0,  2'b01,      2'b00,   2'b01,   1'b0,   1'b0) // CondBR
         7'b1101111: `CONTROL_SIGNALS(3'b100,  1'b1,    1'b1,    1'b1,  2'b00,      2'b10,   2'b10,   1'b0,   1'b0) // JAL
         7'b1100111: `CONTROL_SIGNALS(3'b001,  1'b1,    1'b0,    1'b1,  2'b00,      2'b10,   2'b11,   1'b0,   1'b0) // JALR
+        7'b0000011: `CONTROL_SIGNALS(3'b001,  1'b1,    1'b0,    1'b1,  2'b00,      2'b01,   2'b00,   1'b1,   1'b0) // LOAD
+        7'b0100011: `CONTROL_SIGNALS(3'b010,  1'b0,    1'b0,    1'b1,  2'b00,      2'b00,   2'b00,   1'b0,   1'b1) // STORE
+        7'b0110111: `CONTROL_SIGNALS(3'b000,  1'b1,    1'b1,    1'b1,  2'b00,      2'b00,   2'b00,   1'b0,   1'b0) // LUI
         default:    `CONTROL_SIGNALS(3'b000,  1'b0,    1'b0,    1'b0,  2'b00,      2'b00,   2'b00,   1'b0,   1'b0) // Treat other instructions as NOP
     endcase
 
     // The CPU needs to stall for one cycle when executing a LW instruction, since the data memory
     // uses synchronous read on the rising clock edge.
-    //cs_stall_lw = (opcode == 6'h05) ? 1'b1 : 1'b0;
+    cs_stall_lw = (opcode == 7'b0000011) ? 1'b1 : 1'b0;
 end
 
 endmodule

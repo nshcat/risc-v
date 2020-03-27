@@ -5,7 +5,7 @@ module testbench(
     input reset
 );
 
-datapath uut(
+microcontroller uut(
     .clk(clk),
     .reset(reset)
 );
