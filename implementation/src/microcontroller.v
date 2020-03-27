@@ -43,6 +43,14 @@ leds led(
     .leds_out(leds_out)
 );
 
+systick stick(
+    .clk(clk),
+    .reset(reset),
+    .data_bus_data(data_bus_data),
+    .data_bus_addr(data_bus_addr),
+    .data_bus_mode(data_bus_mode)
+);
+
 wire tim1_irq, tim2_irq, tim3_irq;
 
 timer

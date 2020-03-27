@@ -19,6 +19,7 @@ IRQ_HANDLER void handle_tim1()
 int main()
 {
 	LED_STATE = 0b1110111;
+	LED_STATE = 0b1110111;
 
 	// Initial brightness value
 	PWM_VAL = 127;
