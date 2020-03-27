@@ -2,7 +2,10 @@ module microcontroller(
     input clk,
     input reset,
 
-    output [7:0] leds_out
+    output [7:0] leds_out,
+
+    input int_ext1,
+    input int_ext2    
 );
 
 // ==== Data Bus ====
@@ -16,7 +19,8 @@ datapath core(
     .reset(reset),
     .data_bus_data(data_bus_data),
     .data_bus_addr(data_bus_addr),
-    .data_bus_mode(data_bus_mode)
+    .data_bus_mode(data_bus_mode),
+    .irq_sources({3'b111, int_ext2, int_ext1})
 );
 
 // ==== Data Memory ====
