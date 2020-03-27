@@ -15,7 +15,7 @@ int main()
 	ISR_TIM1 = IRQ_HANDLER_ADDR(handle_tim1);
 	IRQ_MASK = 0b100;
 	
-	TIM1_CNTRL = 0x1;
+	TIM1_CNTRL |= TIMER_ENABLE;
 	
 	while(1);
 	

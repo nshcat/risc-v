@@ -23,7 +23,7 @@ typedef int int32_t;
 #define ISR_TIM2 IO_REG(0x4004)			// ISR address register for timer interrupt 2
 #define ISR_TIM3 IO_REG(0x4005)			// ISR address register for timer interrupt 3
 
-#define TIMER_ENABLE = 0x1				// Timer enable flag in control register
+#define TIMER_ENABLE 0x1				// Timer enable flag in control register
 #define TIM1_CNTRL IO_REG(0x40A0)		// Timer 1 control register
 #define TIM1_PRESCTH IO_REG(0x40A1)		// Timer 1 prescaler threshold
 #define TIM1_CNTRTH IO_REG(0x40A2)		// Timer 1 counter threshold
