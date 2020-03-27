@@ -3,6 +3,7 @@ SOURCES=main.c
 INTERNAL_SOURCES=boot.s $(SOURCES) 
 CC=riscv64-linux-gnu-gcc
 OBJCOPY=riscv64-linux-gnu-objcopy
+OBJDUMP=riscv64-linux-gnu-objdump
 
 CFLAGS=-nostdlib -nostartfiles -march=rv32i -mabi=ilp32 -Tlink.ld -g
 LDFLAGS=
@@ -26,6 +27,9 @@ $(TARGET).txt: $(TARGET).bin
 	
 copy: $(TARGET).txt
 	cp $(TARGET).txt ./../../implementation/memory/
+	
+disasm: $(TARGET).elf
+	$(OBJDUMP) -dS $(TARGET).elf
 	
 clean:
 	rm -rf *.o
