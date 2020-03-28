@@ -1,6 +1,9 @@
 module datapath(
     input clk,
     input reset,
+    
+    // Whether the core is currently in the first clock cylce of a LW stall
+    output stall_lw,
 
     // Data bus
     inout [31:0] data_bus_data,
@@ -103,6 +106,8 @@ end
 // ==== Stalling logic ====
 wire stall;
 
+assign stall_lw = stall & cs_stall_lw;
+
 stall_unit su(
     .clk(clk),
     .reset(reset),
@@ -159,13 +164,15 @@ wire [31:0] write_data;
 
 wire [4:0] read_reg_1 = (cs_reg_1_zero == 1'b1) ? 5'b0 : instr_rs1;
 
+wire write_reg = cs_reg_write & ~stall;
+
 register_file registers(
     .clk(clk),
     .reset(reset),
     .read_reg_1(read_reg_1),
     .read_reg_2(instr_rs2),
     .write_reg(instr_rd),
-    .cs_reg_write(cs_reg_write),
+    .cs_reg_write(write_reg),
     .write_data(write_data),
     .read_data_1(read_data_1),
     .read_data_2(read_data_2)
@@ -213,10 +220,10 @@ wire [31:0] bus_result;
 // Only read from bus in second cycle of stalled LW instruction.
 // The first cycle is used to give peripherals time to prepare the load and
 // present the data to the bus.
-wire read_bus = cs_bus_read & ~stall;
+//wire read_bus = cs_bus_read & ~stall;
 
 data_bus_control_unit dbcu(
-    .cs_bus_read(read_bus),
+    .cs_bus_read(cs_bus_read),
     .cs_bus_write(cs_bus_write),
     .addr_in(alu_out_result),
     .data_out(bus_result),

@@ -8,7 +8,7 @@ typedef int int32_t;
 #define IRQ_HANDLER __attribute__((naked)) 
 
 // ===== Custom Instructions =====
-#define RETI do { __asm__ volatile (".word 0x0000007F"); } while(0);
+#define RETI do { __asm__ __volatile__ (".word 0x0000007F"); } while(0);
 
 
 // ===== I/O Register Definitions =====

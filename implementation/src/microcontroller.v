@@ -15,9 +15,11 @@ wire [31:0] data_bus_addr;
 wire [1:0] data_bus_mode;
 
 // ==== CPU Core ====
+wire stall_lw;
 datapath core(
     .clk(clk),
     .reset(reset),
+    .stall_lw(stall_lw),
     .data_bus_data(data_bus_data),
     .data_bus_addr(data_bus_addr),
     .data_bus_mode(data_bus_mode),
@@ -28,6 +30,7 @@ datapath core(
 data_memory dmem(
     .clk(clk),
     .reset(reset),
+    .stall_lw(stall_lw),
     .data_bus_data(data_bus_data),
     .data_bus_addr(data_bus_addr),
     .data_bus_mode(data_bus_mode)

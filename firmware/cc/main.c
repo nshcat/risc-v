@@ -5,11 +5,12 @@
 
 IRQ_HANDLER void handle_tim1()
 {
+	LED_STATE = ~LED_STATE;
 	PWM_VAL += 50;
 	
 	if(PWM_VAL >= 255)
 		PWM_VAL = 0;
-		
+
 	TIM2_CMPV = PWM_VAL;
 
 	RETI;
@@ -26,6 +27,7 @@ int main()
 	// Setup timer 1. It will be used to change brightness every 200 ms.
 	TIM1_PRESCTH = 17999;		// Prescaler: 18MHz / 18000 => 1 KHz
 	TIM1_CNTRTH = 199;			// Counter: 1KHz / 200 = 5 Hz
+	
 	TIM1_CNTRL = 0b1;			// Enable timer
 	
 	// Setup timer 2. It will be used to implement PWM.
