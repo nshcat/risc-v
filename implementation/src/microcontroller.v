@@ -13,6 +13,8 @@ module microcontroller(
 wire [31:0] data_bus_data;
 wire [31:0] data_bus_addr;
 wire [1:0] data_bus_mode;
+wire [1:0] data_bus_reqw; // Request width
+wire data_bus_reqs;       // If read request is signed
 
 // ==== CPU Core ====
 wire stall_lw;
@@ -23,6 +25,8 @@ datapath core(
     .data_bus_data(data_bus_data),
     .data_bus_addr(data_bus_addr),
     .data_bus_mode(data_bus_mode),
+    .data_bus_reqw(data_bus_reqw),
+    .data_bus_reqs(data_bus_reqs),
     .irq_sources({tim3_irq, tim2_irq, tim1_irq, int_ext2, int_ext1})
 );
 
@@ -33,7 +37,9 @@ data_memory dmem(
     .stall_lw(stall_lw),
     .data_bus_data(data_bus_data),
     .data_bus_addr(data_bus_addr),
-    .data_bus_mode(data_bus_mode)
+    .data_bus_mode(data_bus_mode),
+    .data_bus_reqw(data_bus_reqw),
+    .data_bus_reqs(data_bus_reqs)
 );
 
 // ==== Peripherals ====
