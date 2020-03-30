@@ -9,6 +9,8 @@ module datapath(
     inout [31:0] data_bus_data,
     output [31:0] data_bus_addr,
     output [1:0] data_bus_mode,
+    output [1:0] data_bus_reqw,
+    output data_bus_reqs,
 
     // Interrupts signals
     input [4:0] irq_sources
@@ -141,11 +143,13 @@ program_memory pmem(.address(pc), .instruction(instruction));
 // ==== Control Signals ====
 wire cs_reg_write, cs_reg_1_zero, cs_alu_src, cs_bus_read, cs_bus_write;
 wire cs_alu_shamt, cs_stall_lw, cs_end_isr;
-wire [1:0] cs_alu_control, cs_branch_op, cs_mem_to_reg;
+wire [1:0] cs_alu_control, cs_branch_op, cs_mem_to_reg, cs_mem_width;
 wire [2:0] cs_imm_src;
+wire cs_load_signed;
 
 control_unit cunit(
     .opcode(instr_opcode),
+    .func3(instr_func3),
     .cs_reg_write(cs_reg_write),
     .cs_reg_1_zero(cs_reg_1_zero),
     .cs_alu_src(cs_alu_src),
@@ -156,7 +160,9 @@ control_unit cunit(
     .cs_bus_write(cs_bus_write),
     .cs_imm_src(cs_imm_src),
     .cs_stall_lw(cs_stall_lw),
-    .cs_end_isr(cs_end_isr)
+    .cs_end_isr(cs_end_isr),
+    .cs_mem_width(cs_mem_width),
+    .cs_load_signed(cs_load_signed)
 );
 
 // ==== Register File  ==== 
@@ -225,12 +231,16 @@ wire [31:0] bus_result;
 data_bus_control_unit dbcu(
     .cs_bus_read(cs_bus_read),
     .cs_bus_write(cs_bus_write),
+    .cs_mem_width(cs_mem_width),
+    .cs_load_signed(cs_load_signed),
     .addr_in(alu_out_result),
     .data_out(bus_result),
     .data_in(read_data_2),
     .data_bus_addr(data_bus_addr),
     .data_bus_data(data_bus_data),
-    .data_bus_mode(data_bus_mode)
+    .data_bus_mode(data_bus_mode),
+    .data_bus_reqw(data_bus_reqw),
+    .data_bus_reqs(data_bus_reqs)
 );
 
 
