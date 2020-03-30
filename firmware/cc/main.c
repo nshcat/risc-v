@@ -1,6 +1,6 @@
 #include "defines.h"
 
-#define PWM_VAL *((volatile unsigned*)0x2000)
+#define PWM_VAL *((volatile unsigned*)0x2FFF)
 
 
 IRQ_HANDLER void handle_tim1()
