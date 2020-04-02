@@ -4,6 +4,7 @@ module microcontroller(
 
     output [7:0] leds_out,
     output tim1_cmp, tim2_cmp,
+    inout [15:0] gpio_port_a,
 
     input int_ext1,
     input int_ext2
@@ -33,7 +34,7 @@ datapath core(
     .data_bus_reqs(data_bus_reqs),
     .instr_bus_addr(instr_bus_addr),
     .instr_bus_data(instr_bus_data),
-    .irq_sources({tim3_irq, tim2_irq, tim1_irq, int_ext2, int_ext1})
+    .irq_sources({tim2_irq, tim1_irq, int_ext2, int_ext1})
 );
 
 // ==== Data Memory ====
@@ -72,6 +73,15 @@ leds led(
     .leds_out(leds_out)
 );
 
+gpio_port gpio_a(
+    .clk(clk),
+    .reset(reset),
+    .data_bus_data(data_bus_data),
+    .data_bus_addr(data_bus_addr),
+    .data_bus_mode(data_bus_mode),
+    .gpio_pins(gpio_port_a)
+);
+
 systick stick(
     .clk(clk),
     .reset(reset),
@@ -81,8 +91,6 @@ systick stick(
 );
 
 wire tim1_irq, tim2_irq;
-
-reg tim3_irq = 1'b1;
 
 timer
 #(.base_address(32'h40A0))

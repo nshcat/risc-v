@@ -21,7 +21,6 @@ typedef int int32_t;
 #define ISR_EXT2 IO_REG(0x4002)			// ISR address register for external interrupt 2
 #define ISR_TIM1 IO_REG(0x4003)			// ISR address register for timer interrupt 1
 #define ISR_TIM2 IO_REG(0x4004)			// ISR address register for timer interrupt 2
-#define ISR_TIM3 IO_REG(0x4005)			// ISR address register for timer interrupt 3
 
 #define TIMER_ENABLE 0x1				// Timer enable flag in control register
 #define TIM1_CNTRL IO_REG(0x40A0)		// Timer 1 control register
@@ -38,9 +37,8 @@ typedef int int32_t;
 #define TIM2_PRESCV IO_REG(0x40BA)		// Timer 2 prescaler value (read-only)
 #define TIM2_CNTRV IO_REG(0x40BB)		// Timer 2 counter value (read-only)
 
-#define TIM3_CNTRL IO_REG(0x40C0)		// Timer 3 control register
-#define TIM3_PRESCTH IO_REG(0x40C1)		// Timer 3 prescaler threshold
-#define TIM3_CNTRTH IO_REG(0x40C2)		// Timer 3 counter threshold
-#define TIM3_CMPV IO_REG(0x40C3)		// Timer 3 comparator value
-#define TIM3_PRESCV IO_REG(0x40CA)		// Timer 3 prescaler value (read-only)
-#define TIM3_CNTRV IO_REG(0x40CB)		// Timer 3 counter value (read-only)
+#define GPIO_DDR IO_REG(0x4030)			// GPIO port data direction register (0: Input, 1: Output)
+#define GPIO_IN IO_REG(0x4032)			// GPIO port read values (bits only valid if corresponding pin is in input mode)
+#define GPIO_OUT IO_REG(0x4031)			// GPIO port write values (bits only valid if corresponding pin is in output mode)
+
+#define SYSTICK IO_REG(0x4010)			// Number of milliseconds elapsed since device boot

@@ -11,7 +11,8 @@ module top(
   input INT0,
   input INT1,
   output TIM1_CMP,
-  output TIM2_CMP
+  output TIM2_CMP,
+  inout [15:0] GPIO_A
 );
 
 // PLL to get 18MHz clock
@@ -31,7 +32,8 @@ microcontroller mc(
   .int_ext1(INT0),
   .int_ext2(INT1),
   .tim1_cmp(TIM1_CMP),
-  .tim2_cmp(TIM2_CMP)
+  .tim2_cmp(TIM2_CMP),
+  .gpio_port_a(GPIO_A)
 );
 
 endmodule		 

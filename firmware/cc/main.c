@@ -6,6 +6,8 @@
 IRQ_HANDLER void handle_tim1()
 {
 	LED_STATE = ~LED_STATE;
+	GPIO_OUT = (~GPIO_OUT) & 0x1;
+	
 	PWM_VAL += 50;
 	
 	if(PWM_VAL >= 255)
@@ -24,6 +26,10 @@ int main()
 
 	// Initial brightness value
 	PWM_VAL = 127;
+	
+	// Setup GPIO
+	GPIO_DDR = 0x1; 			// Set pin 0 to be an output, and pin 1 to be an input
+	GPIO_OUT = 0x0; 			// Set initial state to LOW
 	
 	// Setup timer 1. It will be used to change brightness every 200 ms.
 	TIM1_PRESCTH = 16499;		// Prescaler: 16.5MHz / 16500 => 1 KHz

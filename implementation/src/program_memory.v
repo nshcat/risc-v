@@ -25,14 +25,6 @@ parameter SIGNED = 1'b1;
 parameter UNSIGNED = 1'b0;
 
 // === Memory implementation
-/*reg [31:0] memory_data_bus [0:1023];
-reg [31:0] memory_instr_bus [0:1023];
-
-initial begin
-    $readmemh("./../memory/flash.txt", memory_data_bus);
-    $readmemh("./../memory/flash.txt", memory_instr_bus);
-end*/
-
 wire [31:0] pm_dbus_read;
 
 flash_contents dbus(

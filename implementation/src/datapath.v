@@ -17,7 +17,7 @@ module datapath(
     input [31:0] instr_bus_data,
 
     // Interrupts signals
-    input [4:0] irq_sources
+    input [3:0] irq_sources
 );
 
 // ==== First Cycle Detection ====
@@ -39,11 +39,11 @@ reg [31:0] ipc;             // Interrupt process counter, used to restore progra
 wire [4:0] irq_mask;
 wire [31:0] irq_target;
 
-reg [4:0] stalled_irq_sample;   // Saved IRQ sample from first half of stalled LW instruction
+reg [3:0] stalled_irq_sample;   // Saved IRQ sample from first half of stalled LW instruction
 
 // This is a combination of both the current IRQ sources and the stored IRQs sampled
 // in the first cycle of a stalled LW instruction.
-wire [4:0] combined_irq_sources = irq_sources & stalled_irq_sample;
+wire [3:0] combined_irq_sources = irq_sources & stalled_irq_sample;
 
 interrupt_controller irq_cu(
     .clk(clk),
@@ -116,7 +116,7 @@ begin
     if(!reset) begin
         pc <= 32'd0;
         in_isr <= 1'b0;
-        stalled_irq_sample <= 5'b11111;
+        stalled_irq_sample <= 4'b1111;
     end
     else begin
         // In any case, update the PC with thew new value. This is already affected by interrupt logic.
@@ -145,7 +145,7 @@ begin
                 // Make sure the stored IRQ sample is reset so it won't continuously
                 // fire interrupts. Not all of them might have been handled, 
                 // but the one with the highest priority has been. 
-                stalled_irq_sample <= 5'b11111;
+                stalled_irq_sample <= 4'b1111;
             end
         end
     end
