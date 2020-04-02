@@ -2,6 +2,7 @@
 module memory_slice (
         input clk, wen, ren,
         input [1:0] width_mode,
+		input stall_lw,
         input signed_mode,
         input [10:0] addr,		// Full adress relative to begin of slice, byte-addressed
         input [31:0] wdata,
@@ -37,7 +38,7 @@ for(i = 0; i < 4; i++) begin : blocks
 		.clk(clk),
 		.addr(word_address),
 		.rdata(read_result),
-		.ren(ren),	// If we are reading, we always read the whole vertical slice (all four bytes). We just discard what we dont use.
+		.ren(ren),	// Only read in first LW stall cycle (change the output)
 		.wen(write_enable),
 		.wdata(write_data)
 	);
@@ -236,8 +237,8 @@ always @(*) begin
 						// |       { h } |
 						// We write to the second half word.
 						blocks[2].write_enable = 1'b1;
-						blocks[3].write_data = wdata[7:0];
-						blocks[2].write_enable = 1'b1;
+						blocks[2].write_data = wdata[7:0];
+						blocks[3].write_enable = 1'b1;
 						blocks[3].write_data = wdata[15:8];
 						
 						// Disable write to other blocks

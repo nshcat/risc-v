@@ -10,7 +10,7 @@ module systick(
 // ==== Configuration ====
 // IMPORTANT: These have to be adjusted for actual clock speed
 `ifndef VERILATOR
-	localparam PRESCALER = 32'd17999;	// 18MhZ / 18000 = 1KhZ
+	localparam PRESCALER = 32'd16499;	// 16.5MhZ / 16500 = 1KhZ
 	localparam COUNTER = 32'd0;      	// 1KhZ / 1 = 1KhZ
 `else
 	localparam PRESCALER = 32'd9999;    // 100MhZ / 10000 = 10KhZ
