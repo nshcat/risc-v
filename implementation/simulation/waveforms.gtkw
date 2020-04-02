@@ -1,0 +1,26 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Thu Apr  2 01:42:50 2020
+[*]
+[dumpfile] "/home/katharina/git/risc-v/implementation/simulation/logs/vlt_dump.vcd"
+[dumpfile_mtime] "Thu Apr  2 01:41:39 2020"
+[dumpfile_size] 280346050
+[savefile] "/home/katharina/git/risc-v/implementation/simulation/waveforms.gtkw"
+[timestart] 6
+[size] 1690 795
+[pos] -968 76
+*-4.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 211
+[signals_width] 141
+[sst_expanded] 1
+[sst_vpaned_height] 218
+@200
+-Clock
+@8
+TOP.reset
+@28
+TOP.clk
+@201
+-
+[pattern_trace] 1
+[pattern_trace] 0

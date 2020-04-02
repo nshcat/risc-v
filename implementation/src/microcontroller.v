@@ -3,7 +3,7 @@ module microcontroller(
     input reset,
 
     output [7:0] leds_out,
-    output tim1_cmp, tim2_cmp, tim3_cmp,
+    output tim1_cmp, tim2_cmp,
 
     input int_ext1,
     input int_ext2
@@ -16,6 +16,10 @@ wire [1:0] data_bus_mode;
 wire [1:0] data_bus_reqw; // Request width
 wire data_bus_reqs;       // If read request is signed
 
+// ==== Instruction Bus ====
+wire [31:0] instr_bus_data;
+wire [31:0] instr_bus_addr;
+
 // ==== CPU Core ====
 wire stall_lw;
 datapath core(
@@ -27,6 +31,8 @@ datapath core(
     .data_bus_mode(data_bus_mode),
     .data_bus_reqw(data_bus_reqw),
     .data_bus_reqs(data_bus_reqs),
+    .instr_bus_addr(instr_bus_addr),
+    .instr_bus_data(instr_bus_data),
     .irq_sources({tim3_irq, tim2_irq, tim1_irq, int_ext2, int_ext1})
 );
 
@@ -35,6 +41,20 @@ data_memory dmem(
     .clk(clk),
     .reset(reset),
     .stall_lw(stall_lw),
+    .data_bus_data(data_bus_data),
+    .data_bus_addr(data_bus_addr),
+    .data_bus_mode(data_bus_mode),
+    .data_bus_reqw(data_bus_reqw),
+    .data_bus_reqs(data_bus_reqs)
+);
+
+// ==== Program Memory ====
+program_memory pmem(
+    .clk(clk),
+    .reset(reset),
+    .stall_lw(stall_lw),
+    .instr_bus_data(instr_bus_data),
+    .instr_bus_address(instr_bus_addr),
     .data_bus_data(data_bus_data),
     .data_bus_addr(data_bus_addr),
     .data_bus_mode(data_bus_mode),
@@ -60,7 +80,9 @@ systick stick(
     .data_bus_mode(data_bus_mode)
 );
 
-wire tim1_irq, tim2_irq, tim3_irq;
+wire tim1_irq, tim2_irq;
+
+reg tim3_irq = 1'b1;
 
 timer
 #(.base_address(32'h40A0))
@@ -86,19 +108,6 @@ tim2
     .data_bus_mode(data_bus_mode),
     .timer_irq(tim2_irq),
     .comparator_out(tim2_cmp)
-);
-
-timer
-#(.base_address(32'h40C0))
-tim3
-(
-    .clk(clk),
-    .reset(reset),
-    .data_bus_data(data_bus_data),
-    .data_bus_addr(data_bus_addr),
-    .data_bus_mode(data_bus_mode),
-    .timer_irq(tim3_irq),
-    .comparator_out(tim3_cmp)
 );
 
 endmodule

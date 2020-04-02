@@ -40,7 +40,7 @@ VERILATOR_FLAGS += -cc --exe
 # Optimize
 VERILATOR_FLAGS += -O2 -x-assign 0
 # Warn abount lint issues; may not want this on less solid designs
-VERILATOR_FLAGS += -Wall
+VERILATOR_FLAGS += -Wall -Wpedantic
 
 VERILATOR_FLAGS += -I./../src
 # Make waveforms

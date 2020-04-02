@@ -36,6 +36,7 @@ for(i = 0; i < 2; i++) begin : slices
 
     memory_slice inst(
         .clk(clk),
+        .stall_lw(stall_lw),
         .wen(in_this_slice & write_requested),
         .ren(in_this_slice & read_requested),
         .width_mode(data_bus_reqw),

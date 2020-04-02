@@ -12,9 +12,25 @@ module datapath(
     output [1:0] data_bus_reqw,
     output data_bus_reqs,
 
+    // Instruction bus
+    output [31:0] instr_bus_addr,
+    input [31:0] instr_bus_data,
+
     // Interrupts signals
     input [4:0] irq_sources
 );
+
+// ==== First Cycle Detection ====
+reg first_cycle;
+
+always @(posedge clk or negedge reset) begin
+    if(!reset) begin
+        first_cycle <= 1'b1;
+    end
+    else begin
+        first_cycle <= 1'b0;
+    end
+end
 
 // ==== Interrupt Management ====
 reg in_isr;                 // Whether the CPU is currently inside a ISR
@@ -43,7 +59,9 @@ interrupt_controller irq_cu(
 // ==== Process counter and related ==== 
 reg [31:0] pc;              // The current program counter
 wire [31:0] pc4 = pc + 4;   // PC + 4
-wire [31:0] pc_next;        // Value for next PC
+wire [31:0] pc_next;        // Value for next PC, not affected by interrupts
+wire [31:0] pc_next_final;  // Value for next PC, affected by interrupts
+wire will_enter_isr = (((~combined_irq_sources & irq_mask) != 5'b0) && (in_isr == 1'b0)); // Whether we will enter an ISR
 
 branch_control_unit bcu(
     .cs_branch_op(cs_branch_op),
@@ -59,6 +77,40 @@ branch_control_unit bcu(
     .next_pc(pc_next)
 );
 
+// Note: In previous versions of this core, all the PC-related interrupt handling logic was done in the
+// sequential block below. But since switching to a sequential-read FLASH memory module, the final PC value
+// has to be known before the clock edge, i.e. as part of a combinatorial circuit. Because of this,
+// the final PC calculation has been refactored out into the function irq_logic below.
+
+// Apply interrupt logic to pc_next
+function [31:0] irq_logic();
+    // Do nothing in first cycle
+    if(first_cycle) begin
+        irq_logic = 32'h0;
+    end
+    else begin  
+        if(stall) begin // In a stall we keep the PC the same.
+            irq_logic = pc;
+        end
+        else begin
+            // If we are requested to end the current ISR, we need to restore the saved PC
+            if(cs_end_isr) begin
+                irq_logic = ipc;
+            end
+            else if(will_enter_isr) begin // When entering an ISR, the next PC is its address
+                irq_logic = irq_target;
+            end
+            else begin // In all other cases pc_next is unaffected
+                irq_logic = pc_next;
+            end
+        end
+    end
+endfunction
+
+assign pc_next_final = irq_logic();
+
+
+// Perform PC update and sequential IRQ logic
 always @(posedge clk or negedge reset)
 begin
     if(!reset) begin
@@ -67,6 +119,9 @@ begin
         stalled_irq_sample <= 5'b11111;
     end
     else begin
+        // In any case, update the PC with thew new value. This is already affected by interrupt logic.
+        pc <= pc_next_final;
+
         // If the CPU is currently stalling in order to execute a multi-cycle instruction, we can not
         // allow interrupts to disrupt the current instruction execution.
         // We therefore save all incomming IRQs in a temporary storage to be acted
@@ -75,31 +130,22 @@ begin
             // If we are stalling, we need to sample and store incomming IRQs
             // to handle them at the end of the stalled instruction
             stalled_irq_sample <= irq_sources;
-
-            // The PC will stay the same
         end
         else begin
             // Check if need to return from ISR
             if (cs_end_isr != 1'b0) begin
-                pc <= ipc;
                 in_isr <= 1'b0;
             end
-            // Check if there was a IRQ TODO stalling!
-            else if (((~combined_irq_sources & irq_mask) != 5'b0) && (in_isr == 1'b0)) begin
+            // Check if there was a IRQ
+            else if (will_enter_isr) begin
+                // Save original new PC for when we want to return from this ISR
                 ipc <= pc_next;
-                pc <= irq_target;
                 in_isr <= 1'b1;
 
                 // Make sure the stored IRQ sample is reset so it won't continuously
                 // fire interrupts. Not all of them might have been handled, 
                 // but the one with the highest priority has been. 
                 stalled_irq_sample <= 5'b11111;
-            end
-            else begin
-                // If the stall signal is active, we keep the current instruction active for
-                // one more cycle. The stall unit makes sure that the stall signal will not be active
-                // for more than one cycle.
-                pc <= pc_next;
             end
         end
     end
@@ -137,8 +183,15 @@ imm_generator immgen(
     .imm(instr_imm)
 );
 
-// ==== Program memory ==== 
-program_memory pmem(.address(pc), .instruction(instruction));
+// ==== Instruction bus control unit ==== 
+instruction_bus_control_unit ibcu(
+    .clk(clk),
+    .reset(reset),
+    .next_pc(pc_next_final),
+    .instr_bus_addr(instr_bus_addr),
+    .instr_bus_data(instr_bus_data),
+    .instruction(instruction)
+);
 
 // ==== Control Signals ====
 wire cs_reg_write, cs_reg_1_zero, cs_alu_src, cs_bus_read, cs_bus_write;
