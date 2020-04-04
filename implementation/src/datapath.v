@@ -36,7 +36,7 @@ end
 reg in_isr;                 // Whether the CPU is currently inside a ISR
 reg [31:0] ipc;             // Interrupt process counter, used to restore program counter after IRQ
 
-wire [4:0] irq_mask;
+wire [3:0] irq_mask;
 wire [31:0] irq_target;
 
 reg [3:0] stalled_irq_sample;   // Saved IRQ sample from first half of stalled LW instruction
@@ -57,11 +57,11 @@ interrupt_controller irq_cu(
 );
 
 // ==== Process counter and related ==== 
-reg [31:0] pc;              // The current program counter
+reg [31:0] pc /* verilator public */;              // The current program counter
 wire [31:0] pc4 = pc + 4;   // PC + 4
 wire [31:0] pc_next;        // Value for next PC, not affected by interrupts
 wire [31:0] pc_next_final;  // Value for next PC, affected by interrupts
-wire will_enter_isr = (((~combined_irq_sources & irq_mask) != 5'b0) && (in_isr == 1'b0)); // Whether we will enter an ISR
+wire will_enter_isr = (((~combined_irq_sources & irq_mask) != 4'b0) && (in_isr == 1'b0)); // Whether we will enter an ISR
 
 branch_control_unit bcu(
     .cs_branch_op(cs_branch_op),

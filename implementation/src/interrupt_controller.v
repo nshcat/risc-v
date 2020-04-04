@@ -4,7 +4,7 @@ module interrupt_controller(
 
     input [3:0] irq_sources,
     output [31:0] irq_target,       // The flash address of the current ISR
-    output [4:0] irq_mask,          // Mask determining whether interrupts are active for various sources
+    output [3:0] irq_mask,          // Mask determining whether interrupts are active for various sources
 
     inout [31:0] data_bus_data,
     input [31:0] data_bus_addr,
@@ -20,7 +20,7 @@ reg [31:0] isr_tim1;        // Address 0x4003, ISR address for timer interrupt 1
 reg [31:0] isr_tim2;        // Address 0x4004, ISR address for timer interrupt 2
 // ====
 
-assign irq_mask = isr_mask[4:0];
+assign irq_mask = isr_mask[3:0];
 
 function [31:0] current_isr();
     current_isr = 32'b0;

@@ -12,7 +12,7 @@ module register_file(
 );
 
 // 32 registers. Note that $0 is hard-wired to always be 0.
-reg [31:0] regs [31:0];
+reg [31:0] regs [31:0] /* verilator public */;
 
 // Write back
 always @(posedge clk or negedge reset) begin
