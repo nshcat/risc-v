@@ -1,26 +1,31 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Apr  2 01:42:50 2020
+[*] Sat Apr  4 14:23:47 2020
 [*]
 [dumpfile] "/home/katharina/git/risc-v/implementation/simulation/logs/vlt_dump.vcd"
-[dumpfile_mtime] "Thu Apr  2 01:41:39 2020"
-[dumpfile_size] 280346050
+[dumpfile_mtime] "Sat Apr  4 14:23:12 2020"
+[dumpfile_size] 35840624
 [savefile] "/home/katharina/git/risc-v/implementation/simulation/waveforms.gtkw"
-[timestart] 6
+[timestart] 1
 [size] 1690 795
-[pos] -968 76
-*-4.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] 561 105
+*-6.000000 353 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.testbench.
+[treeopen] TOP.testbench.uut.
 [sst_width] 211
-[signals_width] 141
+[signals_width] 202
 [sst_expanded] 1
 [sst_vpaned_height] 218
 @200
--Clock
+-Clock & PC
 @8
 TOP.reset
 @28
 TOP.clk
-@201
+@22
+TOP.testbench.uut.core.pc[31:0]
+@200
 -
 [pattern_trace] 1
 [pattern_trace] 0
