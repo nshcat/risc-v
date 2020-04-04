@@ -12,7 +12,7 @@ module data_memory(
 );
 
 // Instantiate all memory slices
-parameter SRAM_BASE_ADDR = 32'h2000;
+parameter SRAM_BASE_ADDR = 32'h3000;
 parameter SLICE_WIDTH = 32'h800;
 
 genvar i;
@@ -48,7 +48,7 @@ for(i = 0; i < 2; i++) begin : slices
 end
 
 // Whether the access is in range of the whole SRAM.
-wire addr_in_range = (data_bus_addr >= 32'h2000) && (data_bus_addr <= 32'h2FFF);
+wire addr_in_range = (data_bus_addr >= 32'h3000) && (data_bus_addr <= 32'h3FFF);
 
 // Whether the address is in range and bus mode is read/write.
 wire read_requested = addr_in_range && (data_bus_mode == 2'b01);

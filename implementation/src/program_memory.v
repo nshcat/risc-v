@@ -24,75 +24,90 @@ parameter BYTE = 2'b10;
 parameter SIGNED = 1'b1;
 parameter UNSIGNED = 1'b0;
 
+// === State Machine
+parameter STATE_INSTR = 1'b0;   // Flash isn't used by the data bus
+parameter STATE_DATA = 1'b1;    // Flash is used by the data bus. Instruction bus needs to use backup value.
+
+// Current state. This statemachine determines whether the program flash is currently used by
+// the data bus (as part of a load instruction). If this is the case, the instruction bus can't read
+// directly from it, but has to use the previously read value, which is okay since we are always
+// stalling in a load instruction, and thus the pc is the same anyways.
+reg state;
+
+always @(posedge clk or negedge reset) begin
+    if(!reset) begin
+        state <= STATE_INSTR;
+    end
+    else begin
+        // If we are in the stalled cycle of a load operation, the next clock edge
+        // will cause the memory read register to be filled with the result meant for
+        // the data bus.
+        if(state == STATE_INSTR && stall_lw) begin
+            state <= STATE_DATA;
+        end
+        else if(state == STATE_DATA) begin
+            state <= STATE_INSTR;
+        end
+    end
+end
+// ===
+
 // === Memory implementation
-wire [31:0] pm_dbus_read;
+// Select which address to use. If we are in the first cycle of a load instruction the data bus
+// wants to perform a read at the next rising edge, otherwise the instruction bus reads.
+wire [11:0] word_address = (stall_lw) ? data_bus_word_addr : instr_bus_word_addr;
 
-flash_contents dbus(
-    .clk(clk),
-    .raddr(data_bus_word_addr),
-    .rdata(pm_dbus_read),
-    .ren(stall_lw & read_requested)
-);
+reg [31:0] memory [0:3071];
 
-wire [31:0] pm_ibus_read;
+initial $readmemh("./../memory/flash.txt", memory);
 
-flash_contents ibus(
-    .clk(clk),
-    .raddr(instr_bus_word_addr),
-    .rdata(pm_ibus_read),
-    .ren(~stall_lw)
-);
+reg [31:0] memory_read;
+reg [31:0] prev_read;
 
+always @(posedge clk/* or negedge reset*/) begin
+    /*if(!reset) begin
+        memory_read <= 32'h0;
+        prev_read <= 32'h0;    
+    end
+    else begin*/
+        prev_read <= memory_read;
+        memory_read <= memory[word_address];
+    //end
+end
+// ===
 
 // === Instruction bus handling
 // Word-based address from the instruction bus
-wire [10:0] instr_bus_word_addr = instr_bus_address[12:2];
+wire [11:0] instr_bus_word_addr = instr_bus_address[13:2];
 
-// Stored instruction
-wire [31:0] instruction = pm_ibus_read;
+// Stored instruction. If the data bus is currently accessing the flash, we need to fall back
+// to the stored previous instruction. This works since load instructions cause the CPU to stall
+// for one cycle, so the read instruction would be the same anyways.
+wire [31:0] instruction = (state == STATE_DATA) ? prev_read : memory_read;
 
 // The instructions are stored in little endian, so we have to reverse the byte order.
 assign instr_bus_data = {{instruction[07:00]}, {instruction[15:08]}, {instruction[23:16]}, {instruction[31:24]}};
 
-/*always @(posedge clk or negedge reset) begin
-    if(!reset) begin
-        // The CPU is required to do nothing for the first cycle to allow for the first instruction to load.
-        // A completely empty instruction register will be treated as a NOP and thus do nothing.
-        instruction <= 32'h0;
-    end
-    else if(~stall_lw) begin // We use the write-back cycle to load the the new instruction from program memory
-        instruction <= memory_instr_bus[instr_bus_word_addr];
-    end
-end*/
 
 // === Data bus handling
 // Register storing current data bus read results. This is always the full word. If only a part of it was requested, that will
 // be done later when assigning to the tri-state bus.
 // We use positive clock edges with stall_lw asserted to do this loading, since no instruction fetch
 // will happen at those.
-wire [31:0] data_bus_read = pm_dbus_read;
+wire [31:0] data_bus_read = memory_read;
 // Data bus address, word-based
-wire [10:0] data_bus_word_addr = data_bus_addr[12:2];
+wire [11:0] data_bus_word_addr = data_bus_addr[13:2];
 // Address of accessed byte in flash word
 wire [1:0] data_bus_byte_addr = data_bus_addr[1:0];
 
 // Whether a read from the program flash was requested by the data bus controller.
-wire read_requested = (data_bus_mode == 2'b01) && (data_bus_addr < 32'h2000);
-
-/*always @(posedge clk or negedge reset) begin
-    if(!reset) begin
-        data_bus_read <= 32'h0;
-    end
-    else if(stall_lw & read_requested) begin
-        data_bus_read <= memory_data_bus[data_bus_word_addr];
-    end
-end*/
+wire read_requested = (data_bus_mode == 2'b01) && (data_bus_addr < 32'h3000);
 
 // Handle reads with sub-word width
 assign data_bus_data = read_requested ? flash_read() : 32'bz;
 
 function [31:0] flash_read();
-    case (data_bus_mode)
+    case (data_bus_reqw)
         WORD: begin // Simple case: Whole word was read
             flash_read = {data_bus_read[7:0], data_bus_read[15:8], data_bus_read[23:16], data_bus_read[31:24]};
         end
