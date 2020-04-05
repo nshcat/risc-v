@@ -26,7 +26,7 @@ pll pll(
 
 
 microcontroller mc(
-  .clk(CLK),
+  .clk(sysclk),
   .reset(locked),
   .leds_out({LED7, LED6, LED5, LED4, LED3, LED2, LED1, LED0}),
   .int_ext1(INT0),
