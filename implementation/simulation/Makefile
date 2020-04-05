@@ -42,7 +42,7 @@ VERILATOR_FLAGS += -O2 -x-assign 0
 # Warn abount lint issues; may not want this on less solid designs
 VERILATOR_FLAGS += -Wall -Wpedantic
 
-VERILATOR_FLAGS += -I./../src
+VERILATOR_FLAGS += -I./../src -I./src
 # Make waveforms
 VERILATOR_FLAGS += --trace
 # Check SystemVerilog assertions
@@ -64,7 +64,7 @@ run:
 
 	@echo
 	@echo "-- VERILATE ----------------"
-	$(VERILATOR) $(VERILATOR_FLAGS) -f input.vc ./../src/testbench.v sim_main.cpp
+	$(VERILATOR) $(VERILATOR_FLAGS) -f input.vc ./src/testbench.v sim_main.cpp
 
 	@echo
 	@echo "-- COMPILE -----------------"

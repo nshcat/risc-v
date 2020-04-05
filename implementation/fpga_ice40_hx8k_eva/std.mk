@@ -1,11 +1,11 @@
-TARGET_STEM = risc16
+TARGET_STEM = riscv
 
 PINS_FILE = pins.pcf
 
 YOSYS_LOG  = synth.log
 YOSYS_ARGS = -v3 -l $(YOSYS_LOG)
 
-VERILOG_SRCS = $(wildcard ./../src/*.v)
+VERILOG_SRCS = $(wildcard ./../src/*.v) $(wildcard ./src/*.v)
 
 BIN_FILE  = $(TARGET_STEM).bin
 ASC_FILE  = $(TARGET_STEM).asc
