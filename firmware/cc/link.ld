@@ -20,6 +20,18 @@ SECTIONS
 		. = ALIGN(4);
 	} > FLASH
 
+	.rodata :
+	{
+		. = ALIGN(4);
+		*(.rodata)
+	} > FLASH
+	
+	.srodata :
+	{
+		. = ALIGN(4);
+		*(.srodata)
+	} > FLASH
+
 	.data :
 	{
 		. = ALIGN(4);

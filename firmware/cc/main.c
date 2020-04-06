@@ -1,31 +1,41 @@
 #include "defines.h"
 
-#define PWM_VAL *((volatile unsigned*)0x3003)
+uint32_t pwm_val = 127;
 
+const uint32_t animation[10] = {
+	0, 30, 70, 120, 180, 230, 180, 120, 70, 30
+};
+
+uint32_t counter;
 
 IRQ_HANDLER void handle_tim1()
 {
 	LED_STATE = ~LED_STATE;
-	GPIO_OUT = (~GPIO_OUT) & 0x1;
 	
-	PWM_VAL += 50;
+	TIM2_CMPV = animation[counter];
 	
-	if(PWM_VAL >= 255)
-		PWM_VAL = 0;
+	++counter;
+	
+	if(counter >= 10)
+		counter = 0;
+	
+	/*GPIO_OUT = (~GPIO_OUT) & 0x1;
+	
+	pwm_val += 50;
+	
+	if(pwm_val >= 255)
+		pwm_val = 0;
 
-	TIM2_CMPV = PWM_VAL;
+	TIM2_CMPV = pwm_val;*/
 	
 
 	RETI;
 }
 
-
 int main()
 {
 	LED_STATE = 0b1010101010;
-
-	// Initial brightness value
-	PWM_VAL = 127;
+	counter = 0;
 	
 	// Setup GPIO
 	GPIO_DDR = 0x1; 			// Set pin 0 to be an output, and pin 1 to be an input
@@ -40,7 +50,7 @@ int main()
 	// Setup timer 2. It will be used to implement PWM.
 	TIM2_PRESCTH = 164;			// Prescaler: 16.5MHz / 165 = 100 KHz
 	TIM2_CNTRTH = 255;			// 256 steps of PWM resolution
-	TIM2_CMPV = PWM_VAL;			// 50% initial brightness
+	TIM2_CMPV = pwm_val;		// 50% initial brightness
 	TIM2_CNTRL = 0b11;			// Enable timer and its comparator output
 	
 	// Setup timer interrupt for timer 1 that changes the brightness

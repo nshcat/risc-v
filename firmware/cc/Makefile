@@ -20,7 +20,7 @@ $(TARGET).elf:
 	$(CC) $(CFLAGS) -o $(TARGET).elf $(INTERNAL_SOURCES)
 	
 $(TARGET).bin: $(TARGET).elf
-	$(OBJCOPY) -O binary -j ".text" -j ".data" $(TARGET).elf $(TARGET).bin
+	$(OBJCOPY) -O binary -j ".text" -j ".rodata" -j ".srodata" -j ".data" $(TARGET).elf $(TARGET).bin
 	
 $(TARGET).txt: $(TARGET).bin
 	xxd -g 4 -u -ps -c 4 $(TARGET).bin > $(TARGET).txt 
@@ -30,6 +30,9 @@ copy: $(TARGET).txt
 	
 disasm: $(TARGET).elf
 	$(OBJDUMP) -dS $(TARGET).elf
+	
+sections: $(TARGET).elf
+	$(OBJDUMP) -s $(TARGET).elf
 	
 clean:
 	rm -rf *.o
