@@ -17,10 +17,10 @@ $(BIN_FILE):	$(ASC_FILE)
 	icepack	$< $@
 
 $(ASC_FILE):	$(JSON_FILE) $(PINS_FILE)
-	nextpnr-ice40 $(NEXTPNR_FLAGS) --json $(JSON_FILE) --asc $(ASC_FILE) --pcf $(PINS_FILE)
+	nextpnr-ice40 $(NEXTPNR_FLAGS) --freq 16.5 --json $(JSON_FILE) --asc $(ASC_FILE) --pcf $(PINS_FILE)
 
 $(JSON_FILE):	$(VERILOG_SRCS)
-	yosys $(YOSYS_ARGS) -p "synth_ice40 -json $(JSON_FILE)" $(VERILOG_SRCS)
+	yosys $(YOSYS_ARGS) -p "synth_ice40 -abc9 -json $(JSON_FILE)" $(VERILOG_SRCS)
 
 prog:	$(BIN_FILE)
 	$(PROG_BIN) $<
