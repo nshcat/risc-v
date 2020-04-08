@@ -1,5 +1,5 @@
 TARGET=flash
-INTERNAL_SOURCES=./../../sys/boot.s $(SOURCES)
+INTERNAL_SOURCES=./../../sys/boot.s ./../../sys/delay.c $(SOURCES)
 CC=riscv64-linux-gnu-gcc
 OBJCOPY=riscv64-linux-gnu-objcopy
 OBJDUMP=riscv64-linux-gnu-objdump
