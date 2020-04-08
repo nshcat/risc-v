@@ -90,7 +90,7 @@ elif args.sym_size:
         print("")
     print("Symbol statistics:")
     def print_stats_for(header, lst):
-        if len(funcs) > 0:
+        if len(lst) > 0:
             print(f"  {header}")
             for entry in lst:
                 print(f"    {entry['name']:<18} {size_suffix(entry['size']):>4}")
