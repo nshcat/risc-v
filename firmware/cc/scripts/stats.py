@@ -8,7 +8,10 @@ UNITS = ['B', 'K', 'M', 'G']
 def size_suffix(size):
     for unit in UNITS:  
         if size < 1024:
-            return '{0:.0f}{1}'.format(size, unit)
+            if unit == 'B':
+                return '{0:.0f}{1}'.format(size, unit)
+            else:
+                return '{0:.1f}{1}'.format(size, unit)
         size = size / 1024
 
 class style():
@@ -50,15 +53,19 @@ if args.mem_usage:
     text_used = int(data[0]) + int(data[1]) # This also has to count the data initializers, but not BSS
     data_used = int(data[1]) + int(data[2])
 
+    
+
     flash_percentage = (float(text_used) / float(args.flash_size)) * 100.0
     sram_percentage = (float(data_used) / float(args.sram_size)) * 100.0
+    
+    print(f"{text_used}, {args.flash_size}")
 
     if(args.newline):
         print("")
 
     print("Memory usage statistics:")
-    print(f"  Flash: {size_suffix(text_used):<4} of {size_suffix(args.flash_size):<4}  ({color_percentage(flash_percentage)}%)")
-    print(f"  SRAM:  {size_suffix(data_used):<4} of {size_suffix(args.sram_size):<4}  ({color_percentage(sram_percentage)}%)")
+    print(f"  Flash: {size_suffix(text_used):<5} of {size_suffix(args.flash_size):<5}  ({color_percentage(flash_percentage)}%)")
+    print(f"  SRAM:  {size_suffix(data_used):<5} of {size_suffix(args.sram_size):<5}  ({color_percentage(sram_percentage)}%)")
     print("")
 elif args.sym_size:
     funcs = [ ]
