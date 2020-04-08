@@ -1,5 +1,6 @@
 TARGET=flash
-INTERNAL_SOURCES=./../../sys/boot.s ./../../sys/delay.c $(SOURCES)
+SYS_SOURCES=$(wildcard ./../../sys/*.c)
+INTERNAL_SOURCES=./../../sys/boot.s $(SYS_SOURCES) $(SOURCES)
 CC=riscv64-linux-gnu-gcc
 OBJCOPY=riscv64-linux-gnu-objcopy
 OBJDUMP=riscv64-linux-gnu-objdump
