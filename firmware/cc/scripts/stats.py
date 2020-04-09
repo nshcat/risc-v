@@ -58,8 +58,6 @@ if args.mem_usage:
     flash_percentage = (float(text_used) / float(args.flash_size)) * 100.0
     sram_percentage = (float(data_used) / float(args.sram_size)) * 100.0
     
-    print(f"{text_used}, {args.flash_size}")
-
     if(args.newline):
         print("")
 

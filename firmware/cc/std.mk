@@ -7,7 +7,7 @@ OBJDUMP=riscv64-linux-gnu-objdump
 SIZE=riscv64-linux-gnu-size
 NM=riscv64-linux-gnu-nm
 
-CFLAGS=-nostdlib -Wl,--build-id=none -nostartfiles -march=rv32i -mabi=ilp32 -I./../../sys -I./include -T./../../sys/link.ld -g
+CFLAGS=-nostdlib -Wl,--build-id=none -Wl,--gc-sections -fdata-sections -ffunction-sections -nostartfiles -march=rv32i -mabi=ilp32 -I./../../sys -I./include -T./../../sys/link.ld -g
 LDFLAGS=
 
 all: elf flat fpga copy mem_usage
