@@ -23,7 +23,7 @@ $(TARGET).elf: $(INTERNAL_SOURCES)
 	@printf "%-8s %s\n" "CC" "$(INTERNAL_SOURCES)"
 	
 $(TARGET).bin: $(TARGET).elf
-	@$(OBJCOPY) -O binary -j ".text" -j ".rodata" -j ".srodata" -j ".data" $(TARGET).elf $(TARGET).bin
+	@$(OBJCOPY) -O binary -j ".text" -j ".rodata*" -j ".srodata*" -j ".data*" -j ".sdata.*" $(TARGET).elf $(TARGET).bin
 	@printf "%-8s %s\n" "OBJCOPY" "$< -> $@"
 	
 $(TARGET).txt: $(TARGET).bin

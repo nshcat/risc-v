@@ -11,24 +11,24 @@ module timer(
 // ==== Module Parameters ====
 parameter base_address = 32'h40A0;
 parameter addr_cntrl = base_address + 32'h0000;
-parameter addr_prsclr_th = base_address + 32'h0001;
-parameter addr_cntr_th = base_address + 32'h0002;
-parameter addr_cmp_vl = base_address + 32'h0003;
-parameter addr_prsclr_vl = base_address + 32'h000A;
-parameter addr_cntr_vl = base_address + 32'h000B;
+parameter addr_prsclr_th = base_address + 32'h0004;
+parameter addr_cntr_th = base_address + 32'h0008;
+parameter addr_cmp_vl = base_address + 32'h000C;
+parameter addr_prsclr_vl = base_address + 32'h0010;
+parameter addr_cntr_vl = base_address + 32'h0014;
 
 
 // ==== Port Registers ====
-reg [31:0] timer_control;   // Address: 0x00A0
+reg [31:0] timer_control;   
 wire timer_enabled = timer_control[0];
 wire comparator_out_enabled = timer_control[1];
 
-reg [31:0] prescaler_threshold; // Address: 0x00A1
-reg [31:0] counter_threshold;   // Address: 0x00A2
-reg [31:0] comparator_value;    // Address: 0x00A3
+reg [31:0] prescaler_threshold; 
+reg [31:0] counter_threshold;   
+reg [31:0] comparator_value;    
 
-reg [31:0] prescaler_value;     // Address: 0x00AA (read only)
-reg [31:0] counter_value;       // Address: 0x00AB (read only)
+reg [31:0] prescaler_value;     // (read only)
+reg [31:0] counter_value;       // (read only)
 // ====
 
 // ==== Reading ====

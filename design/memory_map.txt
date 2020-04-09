@@ -1,0 +1,40 @@
+
+0x0000 - 0x2FFF     FLASH
+0x3000 - 0x3FFF     SRAM
+0x4000 - 0x5FFF     I/O
+
+Detailed I/O space description:
+
+Interrupt controller:
+0x4000      IRQ mask
+0x4004      External interrupt 1 ISR address
+0x4008      External interrupt 2 ISR address
+0x400C      Timer interrupt 1 ISR address
+0x4010      Timer interrupt 2 ISR address
+
+SysTick timer:
+0x4030      SysTick tick count
+
+GPIO Port A:
+0x4034      Pin Direction
+0x4038      Write Data
+0x403C      Read Data
+
+Timer 1:
+0x40A0      Control
+0x40A4      Prescaler Th
+0x40A8      Counter Th
+0x40AC      Comparator Value
+0x40B0      Prescaler Value
+0x40B4      Counter Value
+
+Timer 2:
+0x40C0      Control
+0x40C4      Prescaler Th
+0x40C8      Counter Th
+0x40CC      Comparator Value
+0x40D0      Prescaler Value
+0x40D4      Counter Value
+
+LEDs:
+0x40F0      Led State

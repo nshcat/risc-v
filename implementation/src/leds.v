@@ -9,17 +9,17 @@ module leds(
 
 
 // ==== Port Registers ====
-reg [31:0] led_state;   // Address 0x4F00
+reg [31:0] led_state;   // Address 0x40F0
 // ====
 
 // ==== Reading ====
-wire read_requested = (data_bus_mode == 2'b01) && (data_bus_addr == 32'h4F00);
+wire read_requested = (data_bus_mode == 2'b01) && (data_bus_addr == 32'h40F0);
 assign data_bus_data = read_requested ? led_state : 32'bz;
 
 
 // ==== Logic ====
 assign leds_out = led_state[7:0];
-wire write_requested = (data_bus_mode == 2'b10) && (data_bus_addr == 32'h4F00);
+wire write_requested = (data_bus_mode == 2'b10) && (data_bus_addr == 32'h40F0);
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin

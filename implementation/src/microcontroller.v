@@ -106,7 +106,7 @@ tim1
 );
 
 timer
-#(.base_address(32'h40B0))
+#(.base_address(32'h40C0))
 tim2
 (
     .clk(clk),

@@ -6,7 +6,7 @@ const uint32_t animation[10] = {
 	0, 30, 70, 120, 180, 230, 180, 120, 70, 30
 };
 
-uint32_t counter;
+uint32_t counter = 0xAABBCCDD;
 
 IRQ_HANDLER void handle_tim1()
 {
@@ -19,9 +19,9 @@ IRQ_HANDLER void handle_tim1()
 	if(counter >= 10)
 		counter = 0;
 	
-	/*GPIO_OUT = (~GPIO_OUT) & 0x1;
+	/*GPIO_OUT = (~GPIO_OUT) & 0x1;*/
 	
-	pwm_val += 50;
+	/*pwm_val += 50;
 	
 	if(pwm_val >= 255)
 		pwm_val = 0;
@@ -50,7 +50,7 @@ int main()
 	// Setup timer 2. It will be used to implement PWM.
 	TIM2_PRESCTH = 164;			// Prescaler: 16.5MHz / 165 = 100 KHz
 	TIM2_CNTRTH = 255;			// 256 steps of PWM resolution
-	TIM2_CMPV = pwm_val;		// 50% initial brightness
+	TIM2_CMPV = 255;//pwm_val;		// 50% initial brightness
 	TIM2_CNTRL = 0b11;			// Enable timer and its comparator output
 	
 	// Setup timer interrupt for timer 1 that changes the brightness

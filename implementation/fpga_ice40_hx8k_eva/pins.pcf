@@ -28,6 +28,6 @@ set_io GPIO_A[15] R10
 set_io INT0 N3
 set_io INT1 N2
 
-set_io TIM1_CMP T13
-set_io TIM2_CMP T14
+set_io TIM1_CMP K3
+set_io TIM2_CMP K1
 

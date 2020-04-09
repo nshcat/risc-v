@@ -19,7 +19,7 @@ module systick(
 // ====
 
 // ==== Port Registers ====
-reg [31:0] tick_count;   // Address 0x4010 (read only)
+reg [31:0] tick_count;   // Address 0x4030 (read only)
 // ====
 
 // ==== Internal Registers ====
@@ -31,7 +31,7 @@ reg [31:0] counter_value;
 // ====
 
 // ==== Reading ====
-wire read_requested = (data_bus_mode == 2'b01) && (data_bus_addr == 32'h4010);
+wire read_requested = (data_bus_mode == 2'b01) && (data_bus_addr == 32'h4030);
 
 assign data_bus_data = read_requested ? bus_read() : 32'bz;
 
