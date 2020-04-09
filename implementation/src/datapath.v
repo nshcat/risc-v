@@ -194,7 +194,7 @@ instruction_bus_control_unit ibcu(
 );
 
 // ==== Control Signals ====
-wire cs_reg_write, cs_reg_1_zero, cs_alu_src, cs_bus_read, cs_bus_write;
+wire cs_reg_write, cs_reg_1_zero, cs_alu_src, cs_bus_read, cs_bus_write, cs_alu_pc;
 wire cs_alu_shamt, cs_stall_lw, cs_end_isr;
 wire [1:0] cs_alu_control, cs_branch_op, cs_mem_to_reg, cs_mem_width;
 wire [2:0] cs_imm_src;
@@ -215,7 +215,8 @@ control_unit cunit(
     .cs_stall_lw(cs_stall_lw),
     .cs_end_isr(cs_end_isr),
     .cs_mem_width(cs_mem_width),
-    .cs_load_signed(cs_load_signed)
+    .cs_load_signed(cs_load_signed),
+    .cs_alu_pc(cs_alu_pc)
 );
 
 // ==== Register File  ==== 
@@ -241,8 +242,10 @@ wire [31:0] read_data_1;    // First output of register read
 wire [31:0] read_data_2;    // Second output of register read
 
 // ==== ALU ==== 
-wire [31:0] alu_input_2 = (cs_alu_shamt == 1'b0) ? alu_input_2_before_shamt : {27'h0, instr_shamt };
+wire [31:0] alu_input_2 = (cs_alu_shamt == 1'b0) ? alu_input_2_before_shamt : { 27'h0, instr_shamt };
 wire [31:0] alu_input_2_before_shamt = (cs_alu_src == 1'b0) ? read_data_2 : instr_imm;
+
+wire [31:0] alu_input_1 = (cs_alu_pc == 1'b0) ? read_data_1 : pc;
 
 wire alu_out_zero;
 wire alu_out_neg;
@@ -262,7 +265,7 @@ alu_control main_alu_control(
 );
 
 alu main_alu(
-    .a(read_data_1),
+    .a(alu_input_1),
     .b(alu_input_2),
     .result(alu_out_result),
     .Z(alu_out_zero),
