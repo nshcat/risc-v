@@ -47,13 +47,30 @@ args = parser.parse_args()
 
 
 if args.mem_usage:
-    line = sys.stdin.readlines()[1]
-    data = line.split()
-
-    text_used = int(data[0]) + int(data[1]) # This also has to count the data initializers, but not BSS
-    data_used = int(data[1]) + int(data[2])
-
+    text = 0
+    data = 0
+    bss = 0
     
+    text_components = { ".reset", ".isr_common", ".text" }
+    
+    for line in sys.stdin.readlines()[2:-3]:
+        components = line.split()
+        name = components[0]
+        size = int(components[1])
+
+        # Text components
+        if(name in text_components):
+            text = text + size
+        elif(name.startswith(".rodata") or name.startswith(".srodata")):
+            text = text + size
+        elif(name.startswith(".bss")):
+            bss = bss + size
+        elif(name.startswith(".data") or name.startswith(".sdata")):
+            data = data + size
+        
+
+    text_used = text + data # This also has to count the data initializers, but not BSS
+    data_used = data + bss
 
     flash_percentage = (float(text_used) / float(args.flash_size)) * 100.0
     sram_percentage = (float(data_used) / float(args.sram_size)) * 100.0

@@ -6,6 +6,7 @@ OBJCOPY=riscv64-linux-gnu-objcopy
 OBJDUMP=riscv64-linux-gnu-objdump
 SIZE=riscv64-linux-gnu-size
 NM=riscv64-linux-gnu-nm
+READELF=riscv64-linux-gnu-readelf
 OPT?=NONE
 
 ifeq ($(OPT),SIZE)
@@ -27,11 +28,11 @@ flat: $(TARGET).bin
 fpga: $(TARGET).txt
 
 $(TARGET).elf: $(INTERNAL_SOURCES)
-	$(CC) $(CFLAGS) -o $(TARGET).elf $(INTERNAL_SOURCES)
+	@$(CC) $(CFLAGS) -o $(TARGET).elf $(INTERNAL_SOURCES)
 	@printf "%-8s %s\n" "CC" "$(INTERNAL_SOURCES)"
 	
 $(TARGET).bin: $(TARGET).elf
-	@$(OBJCOPY) -O binary -j ".text" -j ".rodata*" -j ".srodata*" -j ".data*" -j ".sdata.*" $(TARGET).elf $(TARGET).bin
+	@$(OBJCOPY) -O binary -j ".reset" -j ".isr_common" -j ".text" -j ".rodata*" -j ".srodata*" -j ".data*" -j ".sdata.*" $(TARGET).elf $(TARGET).bin
 	@printf "%-8s %s\n" "OBJCOPY" "$< -> $@"
 	
 $(TARGET).txt: $(TARGET).bin
@@ -39,20 +40,26 @@ $(TARGET).txt: $(TARGET).bin
 	@printf "%-8s %s\n" "XXD" "$< -> $@"
 	
 mem_usage: $(TARGET).elf
-	@$(SIZE) $(TARGET).elf | ./../../scripts/stats.py --mem-usage --flash-size=12288 --sram-size=4096 --newline
+	@$(SIZE) $(TARGET).elf --format=sysv | ./../../scripts/stats.py --mem-usage --flash-size=12288 --sram-size=4096 --newline
 	
 copy: $(TARGET).txt
 	@cp $(TARGET).txt ./../../../../implementation/memory/
 	@printf "%-8s %s\n" "CP" "$< -> /memory"
 	
 disasm: $(TARGET).elf
-	@$(OBJDUMP) -dS $(TARGET).elf
+	@$(OBJDUMP) -dS $(TARGET).elf -j ".text"
+
+disasm_all: $(TARGET).elf
+	@$(OBJDUMP) -dS $(TARGET).elf -j ".reset" -j ".isr_common" -j ".text"
 	
-sections: $(TARGET).elf
+section_contents: $(TARGET).elf
 	@$(OBJDUMP) -s $(TARGET).elf
 	
+sections: $(TARGET).elf
+	@$(READELF) --sections $(TARGET).elf
+
 symbols: $(TARGET).elf
-	@riscv64-linux-gnu-nm --print-size --size-sort --reverse-sort -td flash.elf | ./../../scripts/stats.py --newline --sym-size
+	@$(NM) --print-size --size-sort --reverse-sort -td flash.elf | ./../../scripts/stats.py --newline --sym-size
 	
 clean:
 	rm -rf *.o

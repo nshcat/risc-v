@@ -10,17 +10,19 @@ typedef int int32_t;
 // ===== Custom Instructions =====
 #define RETI do { __asm__ __volatile__ (".word 0x0000007F"); } while(0);
 
-
 // ===== I/O Register Definitions =====
 #define IO_REG(_addr) *((volatile uint32_t*)(_addr))
 
 #define LED_STATE IO_REG(0x40F0)		// LED status register
 
 #define IRQ_MASK IO_REG(0x4000)			// IRQ mask register
-#define ISR_EXT1 IO_REG(0x4004)			// ISR address register for external interrupt 1
-#define ISR_EXT2 IO_REG(0x4008)			// ISR address register for external interrupt 2
-#define ISR_TIM1 IO_REG(0x400C)			// ISR address register for timer interrupt 1
-#define ISR_TIM2 IO_REG(0x4010)			// ISR address register for timer interrupt 2
+#define IRQ_FLAGS IO_REG(0x4004)		// IRQ flags
+#define IRQ_SRC IO_REG(0x4008)          // Currently active IRQ index
+
+#define IRQ_FLAG_EXT1 0b1               // IRQ flag for external interrupt 1
+#define IRQ_FLAG_EXT2 0b10              // IRQ flag for external interrupt 2
+#define IRQ_FLAG_TIM1 0b100             // IRQ flag for timer interrupt 1
+#define IRQ_FLAG_TIM2 0b1000            // IRQ flag for timer interrupt 2
 
 #define TIMER_ENABLE 0x1				// Timer enable flag in control register
 #define TIM1_CNTRL IO_REG(0x40A0)		// Timer 1 control register
