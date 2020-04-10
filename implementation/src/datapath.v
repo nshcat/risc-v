@@ -33,35 +33,91 @@ always @(posedge clk or negedge reset) begin
 end
 
 // ==== Interrupt Management ====
-reg in_isr;                 // Whether the CPU is currently inside a ISR
-reg [31:0] ipc;             // Interrupt process counter, used to restore program counter after IRQ
+// The following registers were originally meant to be part of a separate submodule called the
+// interrupt control unit, but having them right inside the datapath module makes the interrupt
+// logic much easier to implement.
+reg icu_in_isr;                 // Whether the CPU is currently inside a ISR
+reg [31:0] icu_ipc;             // Interrupt process counter, used to restore program counter after IRQ
 
-wire [3:0] irq_mask;
-wire [31:0] irq_target;
+reg [3:0] icu_irq_mask;         // Address: 0x4000 IRQ mask used to enable and disable interrupt handling for certain sources
+reg [3:0] icu_irq_flags;        // Address: 0x4004 Main IRQ flags register.
+                                // A set flag represents an interrupt request. ISRs have to clear the flags.
+reg [3:0] icu_active_irq;       // Address: 0x4008 Which IRQ is currently being handled (stored as index in binary, not as a flag)
 
-reg [3:0] stalled_irq_sample;   // Saved IRQ sample from first half of stalled LW instruction
+wire [3:0] icu_new_irq_flags;   // The new value of irq flags: Sampled and already set flags combined. This is required since we want to do
+                                // a lot of actions on a single clock edge. All IRQ decisions should be based on this value, since it already
+                                // includes the newest IRQ source sample.
 
-// This is a combination of both the current IRQ sources and the stored IRQs sampled
-// in the first cycle of a stalled LW instruction.
-wire [3:0] combined_irq_sources = irq_sources & stalled_irq_sample;
+assign icu_new_irq_flags = icu_irq_flags | ~(irq_sources);  // Sample combinatorially     
 
-interrupt_controller irq_cu(
-    .clk(clk),
-    .reset(reset),
-    .data_bus_data(data_bus_data),
-    .data_bus_mode(data_bus_mode),
-    .data_bus_addr(data_bus_addr),
-    .irq_sources(irq_sources),
-    .irq_mask(irq_mask),
-    .irq_target(irq_target)
-);
+wire [3:0] icu_irq_flags_masked = icu_new_irq_flags & icu_irq_mask; // Masked off IRQ flags
+wire icu_triggered = (icu_irq_flags_masked != 4'h0) && !icu_in_isr && !stall; // Whether an interrupt handling sequence was triggered. Note that interrupts are not triggered when stalled
+
+// The decimal index of the next triggered ISR. This will only hold a valid value if an IRQ was actually triggered.
+function [3:0] icu_triggered_isr();
+    casez (icu_irq_flags_masked)
+        4'b???1: icu_triggered_isr = 4'h0;
+        4'b??10: icu_triggered_isr = 4'h1;
+        4'b?100: icu_triggered_isr = 4'h2;
+        4'b1000: icu_triggered_isr = 4'h3;
+        default: icu_triggered_isr = 4'h0;
+    endcase
+endfunction
+
+
+// == ICU synchronized logic
+wire in_read_space = (data_bus_addr >= 32'h4000) && (data_bus_addr <= 32'h4008);
+wire in_write_space = (data_bus_addr >= 32'h4000) && (data_bus_addr <= 32'h4004);
+wire read_requested = (data_bus_mode == 2'b01) && in_read_space;
+wire write_requested = (data_bus_mode == 2'b10) && in_write_space;
+assign data_bus_data = read_requested ? bus_read() : 32'bz;
+
+function [31:0] bus_read();
+    case (data_bus_addr)
+        32'h4000: bus_read = { 28'h0, icu_irq_mask };
+        32'h4004: bus_read = { 28'h0, icu_irq_flags };
+        default: bus_read = { 28'h0, icu_active_irq };
+    endcase
+endfunction
+
+always @(posedge clk or negedge reset) begin
+    if(!reset) begin
+        icu_irq_mask <= 4'b0000;
+        icu_irq_flags <= 4'b0000;
+        icu_active_irq <= 4'b0000;
+        icu_in_isr <= 1'b0;
+    end
+    else begin
+        if(write_requested) begin
+            case (data_bus_addr) // TODO in this case, we still need to sample!
+                32'h4000: icu_irq_mask <= data_bus_data[3:0];
+                default: icu_irq_flags <= data_bus_data[3:0];
+            endcase
+        end
+        else begin
+            // Sample
+            icu_irq_flags <= icu_new_irq_flags;
+
+            // Should we trigger an interrupt handler?
+            if(icu_triggered) begin
+                icu_ipc <= pc_next;
+                icu_in_isr <= 1'b1;
+                icu_active_irq <= icu_triggered_isr();
+            end
+            // Handle ISR return via RETI
+            else if (icu_in_isr && cs_end_isr != 1'b0) begin
+                icu_in_isr <= 1'b0;
+            end
+        end
+    end
+end
+// == 
 
 // ==== Process counter and related ==== 
 reg [31:0] pc;              // The current program counter
 wire [31:0] pc4 = pc + 4;   // PC + 4
 wire [31:0] pc_next;        // Value for next PC, not affected by interrupts
 wire [31:0] pc_next_final;  // Value for next PC, affected by interrupts
-wire will_enter_isr = (((~combined_irq_sources & irq_mask) != 4'b0) && (in_isr == 1'b0)); // Whether we will enter an ISR
 
 branch_control_unit bcu(
     .cs_branch_op(cs_branch_op),
@@ -95,10 +151,10 @@ function [31:0] irq_logic();
         else begin
             // If we are requested to end the current ISR, we need to restore the saved PC
             if(cs_end_isr) begin
-                irq_logic = ipc;
+                irq_logic = icu_ipc;
             end
-            else if(will_enter_isr) begin // When entering an ISR, the next PC is its address
-                irq_logic = irq_target;
+            else if(icu_triggered) begin // When entering an ISR, the next PC is its address
+                irq_logic = 32'h10;
             end
             else begin // In all other cases pc_next is unaffected
                 irq_logic = pc_next;
@@ -115,39 +171,10 @@ always @(posedge clk or negedge reset)
 begin
     if(!reset) begin
         pc <= 32'd0;
-        in_isr <= 1'b0;
-        stalled_irq_sample <= 4'b1111;
     end
     else begin
-        // In any case, update the PC with thew new value. This is already affected by interrupt logic.
+        // In any case, update the PC with thew new value. This is already affected by interrupt logic and stalling.
         pc <= pc_next_final;
-
-        // If the CPU is currently stalling in order to execute a multi-cycle instruction, we can not
-        // allow interrupts to disrupt the current instruction execution.
-        // We therefore save all incomming IRQs in a temporary storage to be acted
-        // upon at a later stage.
-        if (stall == 1'b1) begin
-            // If we are stalling, we need to sample and store incomming IRQs
-            // to handle them at the end of the stalled instruction
-            stalled_irq_sample <= irq_sources;
-        end
-        else begin
-            // Check if need to return from ISR
-            if (cs_end_isr != 1'b0) begin
-                in_isr <= 1'b0;
-            end
-            // Check if there was a IRQ
-            else if (will_enter_isr) begin
-                // Save original new PC for when we want to return from this ISR
-                ipc <= pc_next;
-                in_isr <= 1'b1;
-
-                // Make sure the stored IRQ sample is reset so it won't continuously
-                // fire interrupts. Not all of them might have been handled, 
-                // but the one with the highest priority has been. 
-                stalled_irq_sample <= 4'b1111;
-            end
-        end
     end
 end
 
