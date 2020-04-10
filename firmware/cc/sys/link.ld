@@ -38,7 +38,7 @@ SECTIONS
 		_sdata = .;        /* create a global symbol at data start */
 		*(.data)           /* .data sections */
 		*(.data*)          /* .data* sections */
-		*(.sdata)		   /* small data */
+		*(.sdata*)		   /* small data */
 
 		. = ALIGN(4);
 		_edata = .;        /* define a global symbol at data end */

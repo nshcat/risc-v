@@ -6,8 +6,16 @@ OBJCOPY=riscv64-linux-gnu-objcopy
 OBJDUMP=riscv64-linux-gnu-objdump
 SIZE=riscv64-linux-gnu-size
 NM=riscv64-linux-gnu-nm
+OPT?=NONE
 
-CFLAGS=-nostdlib -Wl,--build-id=none -Wl,--gc-sections -fdata-sections -ffunction-sections -nostartfiles -march=rv32i -mabi=ilp32 -I./../../sys -I./include -T./../../sys/link.ld -g
+ifeq ($(OPT),SIZE)
+    OPT_FLAGS=-Os
+else
+    OPT_FLAGS=-O0
+endif
+
+
+CFLAGS=-nostdlib -Wl,--build-id=none -Wl,--gc-sections $(OPT_FLAGS) -fdata-sections -ffunction-sections -nostartfiles -march=rv32i -mabi=ilp32 -I./../../sys -I./include -T./../../sys/link.ld -g
 LDFLAGS=
 
 all: elf flat fpga copy mem_usage
@@ -19,11 +27,11 @@ flat: $(TARGET).bin
 fpga: $(TARGET).txt
 
 $(TARGET).elf: $(INTERNAL_SOURCES)
-	@$(CC) $(CFLAGS) -o $(TARGET).elf $(INTERNAL_SOURCES)
+	$(CC) $(CFLAGS) -o $(TARGET).elf $(INTERNAL_SOURCES)
 	@printf "%-8s %s\n" "CC" "$(INTERNAL_SOURCES)"
 	
 $(TARGET).bin: $(TARGET).elf
-	@$(OBJCOPY) -O binary -j ".text" -j ".rodata" -j ".srodata" -j ".data" $(TARGET).elf $(TARGET).bin
+	@$(OBJCOPY) -O binary -j ".text" -j ".rodata*" -j ".srodata*" -j ".data*" -j ".sdata.*" $(TARGET).elf $(TARGET).bin
 	@printf "%-8s %s\n" "OBJCOPY" "$< -> $@"
 	
 $(TARGET).txt: $(TARGET).bin
