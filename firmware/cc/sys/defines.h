@@ -3,13 +3,6 @@
 typedef unsigned uint32_t;
 typedef int int32_t;
 
-// ===== Utilities =====
-#define IRQ_HANDLER_ADDR(_fun) (uint32_t)&(_fun)
-#define IRQ_HANDLER __attribute__((naked)) 
-
-// ===== Custom Instructions =====
-#define RETI do { __asm__ __volatile__ (".word 0x0000007F"); } while(0);
-
 // ===== I/O Register Definitions =====
 #define IO_REG(_addr) *((volatile uint32_t*)(_addr))
 
