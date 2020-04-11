@@ -10,7 +10,8 @@ typedef int int32_t;
 
 #define IRQ_MASK IO_REG(0x4000)			// IRQ mask register
 #define IRQ_FLAGS IO_REG(0x4004)		// IRQ flags
-#define IRQ_SRC IO_REG(0x4008)          // Currently active IRQ index
+#define IRQ_ACTIVE IO_REG(0x4008)       // Currently active IRQ index
+#define IRQ_ACTIVE_FLAG IO_REG(0x400C)  // Flag that triggered currently active IRQ
 
 #define IRQ_FLAG_EXT1 0b1               // IRQ flag for external interrupt 1
 #define IRQ_FLAG_EXT2 0b10              // IRQ flag for external interrupt 2

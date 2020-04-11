@@ -28,8 +28,14 @@ _reset:
 .global _irq_reg_save
 _irq_reg_save: .fill 20*4
 
+# Address of ICU flag register
+.set ICU_IRQ_FLAGS, 0x4004
+
 # Address of current IRQ number, stored in the ICU
-.set ICU_IRQ_NUM, 0x4008    
+.set ICU_IRQ_ACTIVE_NUM, 0x4008
+
+# Address of register containing the flag that triggered current IRQ
+.set ICU_IRQ_ACTIVE_FLAG, 0x400C    
 
 # Common IRQ handler. Must be placed at address 0x10.
 .align 4
@@ -69,8 +75,8 @@ _isr_common:
     sw x31, 19*4(t0)
     
     # Retrieve IRQ number. It is stored in the interrupt control unit.
-    lui t0, %hi(ICU_IRQ_NUM)
-    addi t0, t0, %lo(ICU_IRQ_NUM)
+    lui t0, %hi(ICU_IRQ_ACTIVE_NUM)
+    addi t0, t0, %lo(ICU_IRQ_ACTIVE_NUM)
     lw t0, 0(t0)
     
     # Create offset: index * 4
@@ -86,13 +92,20 @@ _isr_common:
     # Load interrupt vector address
     lw t1, 0(t1)
     
-    # If it's not zero, call it
+    # If it's not zero, call it. 
     beq t1, zero, .is_zero
     jalr ra, 0(t1)
+    j .restore
     
+    # If entry was zero, call default handler
 .is_zero:
+    lui t1, %hi(_default_isr)
+    addi t1, t1, %lo(_default_isr)
+    jalr ra, 0(t1)
+    
+.restore:
     # Restore all registers
-    # Build base address
+    # Build base address. The called ISR could have clobbered t0, so we have to recalculate it.
     lui t0, %hi(_irq_reg_save)
     addi t0, t0, %lo(_irq_reg_save)
     
@@ -124,6 +137,38 @@ _isr_common:
     
     # Return from ISR
     .word 0x0000007F
+
+
+# Default ISR used when the common ISR encounters a nullptr inside the interrupt vector table.
+# Clears the IRQ flag that triggered the interrupt and returns.
+.align 4
+.global _default_isr
+.section .text
+_default_isr:
+    # Prepare address to triggered flag ICU register and load
+    lui t0, %hi(ICU_IRQ_ACTIVE_FLAG)
+    addi t0, t0, %lo(ICU_IRQ_ACTIVE_FLAG)
+    lw t0, 0(t0)
+    
+    # Turn it into a mask
+    not t0, t0
+    
+    # Prepare address of flag ICU register
+    lui t1, %hi(ICU_IRQ_FLAGS)
+    addi t1, t1, %lo(ICU_IRQ_FLAGS)
+    
+    # Load current value
+    lw t2, 0(t1)
+    
+    # Clear triggered flag
+    and t2, t2, t0
+    
+    # Store it back
+    sw t2, 0(t1)
+    
+    # We are done
+    ret
+    
 
 .align 4
 .global _start

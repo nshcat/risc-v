@@ -1,7 +1,6 @@
 void handle_tim1();
 
-// Important: A value of 0x0 is only allowed if the interrupt will never be fired (because it's masked, for example)
-// since otherwise the corresponding interrupt flag will never be cleared.
+// A value of 0x0 causes a default ISR to be executed, which clears the triggered flag.
 void (*const irq_vector[4])(void) = {
     0x0,                /* External interrupt 1 */
     0x0,                /* External interrupt 2 */

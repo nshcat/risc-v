@@ -43,6 +43,8 @@ reg [3:0] icu_irq_mask;         // Address: 0x4000 IRQ mask used to enable and d
 reg [3:0] icu_irq_flags;        // Address: 0x4004 Main IRQ flags register.
                                 // A set flag represents an interrupt request. ISRs have to clear the flags.
 reg [3:0] icu_active_irq;       // Address: 0x4008 Which IRQ is currently being handled (stored as index in binary, not as a flag)
+reg [3:0] icu_active_flag;      // Address: 0x400C Which IRQ is currently being handled (stored as flag that triggered it.
+                                // This is useful for general handlers, since it makes clearing the flag easier)
 
 wire [3:0] icu_new_irq_flags;   // The new value of irq flags: Sampled and already set flags combined. This is required since we want to do
                                 // a lot of actions on a single clock edge. All IRQ decisions should be based on this value, since it already
@@ -64,9 +66,20 @@ function [3:0] icu_triggered_isr();
     endcase
 endfunction
 
+// The flag corresponding to the triggered ISR. This will only hold a valid value if an IRQ was actually triggered.
+function [3:0] icu_triggered_flag();
+    casez (icu_irq_flags_masked)
+        4'b???1: icu_triggered_flag = 4'b1;
+        4'b??10: icu_triggered_flag = 4'b10;
+        4'b?100: icu_triggered_flag = 4'b100;
+        4'b1000: icu_triggered_flag = 4'b1000;
+        default: icu_triggered_flag = 4'b0;
+    endcase
+endfunction
+
 
 // == ICU synchronized logic
-wire in_read_space = (data_bus_addr >= 32'h4000) && (data_bus_addr <= 32'h4008);
+wire in_read_space = (data_bus_addr >= 32'h4000) && (data_bus_addr <= 32'h400C);
 wire in_write_space = (data_bus_addr >= 32'h4000) && (data_bus_addr <= 32'h4004);
 wire read_requested = (data_bus_mode == 2'b01) && in_read_space;
 wire write_requested = (data_bus_mode == 2'b10) && in_write_space;
@@ -76,7 +89,8 @@ function [31:0] bus_read();
     case (data_bus_addr)
         32'h4000: bus_read = { 28'h0, icu_irq_mask };
         32'h4004: bus_read = { 28'h0, icu_irq_flags };
-        default: bus_read = { 28'h0, icu_active_irq };
+        32'h4008: bus_read = { 28'h0, icu_active_irq };
+        default: bus_read = { 28'h0, icu_active_flag };
     endcase
 endfunction
 
@@ -85,6 +99,7 @@ always @(posedge clk or negedge reset) begin
         icu_irq_mask <= 4'b0000;
         icu_irq_flags <= 4'b0000;
         icu_active_irq <= 4'b0000;
+        icu_active_flag <= 4'b0000;
         icu_in_isr <= 1'b0;
     end
     else begin
@@ -103,6 +118,7 @@ always @(posedge clk or negedge reset) begin
                 icu_ipc <= pc_next;
                 icu_in_isr <= 1'b1;
                 icu_active_irq <= icu_triggered_isr();
+                icu_active_flag <= icu_triggered_flag();
             end
             // Handle ISR return via RETI
             else if (icu_in_isr && cs_end_isr != 1'b0) begin
