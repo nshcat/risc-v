@@ -21,16 +21,6 @@ void handle_tim1()
 	
 	if(counter >= 10)
 		counter = 0;
-	
-	/*GPIO_OUT = (~GPIO_OUT) & 0x1;*/
-	
-	/*pwm_val += 50;
-	
-	if(pwm_val >= 255)
-		pwm_val = 0;
-
-	TIM2_CMPV = pwm_val;*/
-	
 
 	return;
 }
@@ -53,7 +43,7 @@ int main()
 	// Setup timer 2. It will be used to implement PWM.
 	TIM2_PRESCTH = 164;			// Prescaler: 16.5MHz / 165 = 100 KHz
 	TIM2_CNTRTH = 255;			// 256 steps of PWM resolution
-	TIM2_CMPV = 255;		    // 50% initial brightness
+	TIM2_CMPV = 0;		        // 0% initial brightness
 	TIM2_CNTRL = 0b11;			// Enable timer and its comparator output
 	
 	// Enable interrupt handling for timer interrupt 1

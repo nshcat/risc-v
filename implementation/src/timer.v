@@ -53,6 +53,8 @@ endfunction
 // ==== Writing and Logic ====
 wire write_requested = (data_bus_mode == 2'b10) && addr_in_rw;
 
+//assign timer_irq = (!timer_enabled) | !(((prescaler_value >= (prescaler_threshold)) && (counter_value >= (counter_threshold))));
+
 always @(negedge clk or negedge reset) begin
     if(!reset) begin
         timer_irq <= 1'b1;

@@ -59,7 +59,13 @@ wire [11:0] word_address = (stall_lw) ? data_bus_word_addr : instr_bus_word_addr
 
 reg [31:0] memory [0:3071];
 
-initial $readmemh("./../memory/flash.txt", memory);
+`ifdef YOSYS_HX8K
+    // For the HX8K we support replacing the flash contents after synthesis, which requires the flash
+    // to be initially filled with special marker content.
+    initial $readmemh("./../memory/marker.txt", memory);
+`else
+    initial $readmemh("./../memory/flash.txt", memory);
+`endif
 
 reg [31:0] memory_read;
 reg [31:0] prev_read;
