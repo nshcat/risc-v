@@ -4,7 +4,7 @@ module timer(
     inout [31:0] data_bus_data,
     input [31:0] data_bus_addr,
     input [1:0] data_bus_mode,  // 00: Nothing, 01: Read, 10: Write
-    output reg timer_irq,
+    output timer_irq,
     output reg comparator_out
 );
 
@@ -53,26 +53,7 @@ endfunction
 // ==== Writing and Logic ====
 wire write_requested = (data_bus_mode == 2'b10) && addr_in_rw;
 
-//assign timer_irq = (!timer_enabled) | !(((prescaler_value >= (prescaler_threshold)) && (counter_value >= (counter_threshold))));
-
-always @(negedge clk or negedge reset) begin
-    if(!reset) begin
-        timer_irq <= 1'b1;
-    end
-    else begin
-        if (!timer_enabled) begin
-            timer_irq <= 1'b1;
-        end
-        else begin
-            if ((prescaler_value >= (prescaler_threshold)) && (counter_value >= (counter_threshold))) begin
-                timer_irq <= 1'b0;
-            end
-            else begin
-                timer_irq <= 1'b1;
-            end
-        end
-    end
-end
+assign timer_irq = (!timer_enabled) | !(((prescaler_value >= (prescaler_threshold)) && (counter_value >= (counter_threshold))));
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
