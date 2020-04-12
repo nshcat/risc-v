@@ -1,0 +1,5 @@
+riscv.asc
+riscv_flashed.asc
+synth.log
+riscv.bin
+riscv.json
