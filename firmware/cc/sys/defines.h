@@ -18,7 +18,8 @@ typedef int int32_t;
 #define IRQ_FLAG_TIM1 0b100             // IRQ flag for timer interrupt 1
 #define IRQ_FLAG_TIM2 0b1000            // IRQ flag for timer interrupt 2
 
-#define TIMER_ENABLE 0x1				// Timer enable flag in control register
+#define TIMER_ENABLE 0x1				// Timer enable flag in timer control register
+#define TIMER_CMP_ENABLE 0x2            // Comparator output enable flag in timer control register
 #define TIM1_CNTRL IO_REG(0x40A0)		// Timer 1 control register
 #define TIM1_PRESCTH IO_REG(0x40A4)		// Timer 1 prescaler threshold
 #define TIM1_CNTRTH IO_REG(0x40A8)		// Timer 1 counter threshold
