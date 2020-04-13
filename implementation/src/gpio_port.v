@@ -21,6 +21,18 @@ for(pin = 0; pin < 16; pin++) begin : pins
     assign gpio_pins[pin] = (pin_direction[pin] == 1'b1) ? write_data[pin] : 1'bZ;
 end
 endgenerate
+
+// Input synchronizer, 16 bits wide and three FF stages deep
+synchronizer
+#(.WIDTH(16), .DEPTH(3))
+sync(
+    .clk(clk),
+    .reset(reset),
+    .in(gpio_pins),     // Physical GPIO pins on the FPGA
+    .out(sync_in)       // Synchronized output
+);
+
+wire [15:0] sync_in; // The synchronized input vector. Can be safely used in clocked processes.
 // ====
 
 
@@ -59,7 +71,7 @@ always @(posedge clk or negedge reset) begin
             endcase
         end
 
-        read_data <= gpio_pins; // Sample
+        read_data <= sync_in; // Sample synchronized input
     end
 end
 
