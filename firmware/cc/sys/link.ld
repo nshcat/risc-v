@@ -1,6 +1,6 @@
 OUTPUT_FORMAT("elf32-littleriscv", "elf32-littleriscv", "elf32-littleriscv")
 OUTPUT_ARCH("riscv")
-ENTRY(_start)
+ENTRY(_reset)
  
 MEMORY
 {
@@ -11,13 +11,22 @@ MEMORY
 SECTIONS
 {
 	/DISCARD/ : { *(.note.gnu.build-id) }
+	
+	.reset 0x0 :
+	{		
+		KEEP(*(.reset))
+	} > FLASH
+	
+    .isr_common 0x10 :
+    {
+        KEEP(*(.isr_common))
+        END_ISR_COMMON = .;
+    } > FLASH
 
-	.text :
+	.text END_ISR_COMMON :
 	{
-		. = 0x000;
-		*(.text._start)
+	    KEEP(*(.text._start))
 		*(.text*)
-		. = ALIGN(4);
 	} > FLASH
 
 	.rodata :
@@ -53,8 +62,9 @@ SECTIONS
 	{
 		. = ALIGN(4);
 		_sbss = .;
+		*(.bss)
 		*(.bss*)
-		
+		*(COMMON)         
 		. = ALIGN(4);
 		_ebss = .;
 	} >SRAM

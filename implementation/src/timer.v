@@ -4,7 +4,7 @@ module timer(
     inout [31:0] data_bus_data,
     input [31:0] data_bus_addr,
     input [1:0] data_bus_mode,  // 00: Nothing, 01: Read, 10: Write
-    output reg timer_irq,
+    output timer_irq,
     output reg comparator_out
 );
 
@@ -19,7 +19,7 @@ parameter addr_cntr_vl = base_address + 32'h0014;
 
 
 // ==== Port Registers ====
-reg [31:0] timer_control;   
+reg [1:0] timer_control;   
 wire timer_enabled = timer_control[0];
 wire comparator_out_enabled = timer_control[1];
 
@@ -40,7 +40,7 @@ assign data_bus_data = read_requested ? bus_read() : 32'bz;
 
 function [31:0] bus_read();
     case (data_bus_addr)
-        addr_cntrl: bus_read = timer_control;
+        addr_cntrl: bus_read = { 30'h0, timer_control };
         addr_prsclr_th: bus_read = prescaler_threshold;
         addr_cntr_th: bus_read = counter_threshold;
         addr_cmp_vl: bus_read = comparator_value;
@@ -53,28 +53,11 @@ endfunction
 // ==== Writing and Logic ====
 wire write_requested = (data_bus_mode == 2'b10) && addr_in_rw;
 
-always @(negedge clk or negedge reset) begin
-    if(!reset) begin
-        timer_irq <= 1'b1;
-    end
-    else begin
-        if (!timer_enabled) begin
-            timer_irq <= 1'b1;
-        end
-        else begin
-            if ((prescaler_value >= (prescaler_threshold)) && (counter_value >= (counter_threshold))) begin
-                timer_irq <= 1'b0;
-            end
-            else begin
-                timer_irq <= 1'b1;
-            end
-        end
-    end
-end
+assign timer_irq = (!timer_enabled) | !(((prescaler_value >= (prescaler_threshold)) && (counter_value >= (counter_threshold))));
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
-        timer_control <= 32'b0;
+        timer_control <= 2'b0;
         prescaler_threshold <= 32'b0;
         counter_threshold <= 32'b0;
         prescaler_value <= 32'b0;
@@ -86,7 +69,7 @@ always @(posedge clk or negedge reset) begin
         // If we are requested to do a write, handle that
         if(write_requested) begin
             case (data_bus_addr)
-                addr_cntrl: timer_control <= data_bus_data;
+                addr_cntrl: timer_control <= data_bus_data[1:0];
                 addr_prsclr_th: prescaler_threshold <= data_bus_data;
                 addr_cntr_th: counter_threshold <= data_bus_data;
                 default: comparator_value <= data_bus_data;

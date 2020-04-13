@@ -13,7 +13,7 @@ const char* messages[5] = {
 uint32_t current_msg = 0;
 uint32_t counter = 0;
 
-IRQ_HANDLER void handle_tim1()
+void handle_tim1()
 {
 	LED_STATE = ~LED_STATE;
 	
@@ -25,7 +25,7 @@ IRQ_HANDLER void handle_tim1()
 	    lcd_puts(messages[current_msg]);
 	}
 
-	RETI;
+	return;
 }
 
 int main()
@@ -42,10 +42,9 @@ int main()
 	// Setup timer 1. It will fire an interrupt every 200 ms.
 	TIM1_PRESCTH = 16499;		                    // Prescaler: 16.5MHz / 16500 => 1 KHz
 	TIM1_CNTRTH = 199;			                    // Counter: 1KHz / 200 = 5 Hz	
-    ISR_TIM1 = IRQ_HANDLER_ADDR(handle_tim1);       // Setup timer interrupt for timer 1.
-	IRQ_MASK = 0b100;
     TIM1_CNTRL = 0b1;			                    // Enable timer
 	
+	IRQ_MASK = IRQ_FLAG_TIM1;                       // Unmask timer 1 interrupt
 	
 	while(1);
 	
