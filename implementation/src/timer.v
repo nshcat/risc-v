@@ -1,9 +1,11 @@
 module timer(
     input clk,
     input reset,
-    inout [31:0] data_bus_data,
+    input [31:0] data_bus_write,
+    output [31:0] data_bus_read,
     input [31:0] data_bus_addr,
     input [1:0] data_bus_mode,  // 00: Nothing, 01: Read, 10: Write
+    input data_bus_select,
     output timer_irq,
     output reg comparator_out
 );
@@ -32,11 +34,9 @@ reg [31:0] counter_value;       // (read only)
 // ====
 
 // ==== Reading ====
-wire addr_in_readonly = (data_bus_addr >= addr_prsclr_vl) && (data_bus_addr <= addr_cntr_vl);
-wire addr_in_rw = (data_bus_addr >= base_address) && (data_bus_addr <= addr_cmp_vl);
-wire read_requested = (data_bus_mode == 2'b01) && (addr_in_readonly || addr_in_rw);
+wire read_requested = (data_bus_mode == 2'b01) && data_bus_select;
 
-assign data_bus_data = read_requested ? bus_read() : 32'bz;
+assign data_bus_read = bus_read();
 
 function [31:0] bus_read();
     case (data_bus_addr)
@@ -51,7 +51,7 @@ endfunction
 
 
 // ==== Writing and Logic ====
-wire write_requested = (data_bus_mode == 2'b10) && addr_in_rw;
+wire write_requested = (data_bus_mode == 2'b10) && data_bus_select;
 
 assign timer_irq = (!timer_enabled) | !(((prescaler_value >= (prescaler_threshold)) && (counter_value >= (counter_threshold))));
 
@@ -69,10 +69,10 @@ always @(posedge clk or negedge reset) begin
         // If we are requested to do a write, handle that
         if(write_requested) begin
             case (data_bus_addr)
-                addr_cntrl: timer_control <= data_bus_data[1:0];
-                addr_prsclr_th: prescaler_threshold <= data_bus_data;
-                addr_cntr_th: counter_threshold <= data_bus_data;
-                default: comparator_value <= data_bus_data;
+                addr_cntrl: timer_control <= data_bus_write[1:0];
+                addr_prsclr_th: prescaler_threshold <= data_bus_write;
+                addr_cntr_th: counter_threshold <= data_bus_write;
+                default: comparator_value <= data_bus_write;
             endcase
 
             // Reset timer TODO is this a good idea?

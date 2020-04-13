@@ -5,13 +5,23 @@ module datapath(
     // Whether the core is currently in the first clock cylce of a LW stall
     output stall_lw,
 
-    // Data bus
-    inout [31:0] data_bus_data,
-    output [31:0] data_bus_addr,
-    output [1:0] data_bus_mode,
-    output [1:0] data_bus_reqw,
-    output data_bus_reqs,
+    // Data bus master interface
+    output [31:0] cpu_address,
+    output [31:0] cpu_write_data,
+    input [31:0] cpu_read_data,
+    output [1:0] cpu_mode,
+    output [1:0] cpu_reqw,
+    output cpu_reqs,
 
+    // Shared data bus slave interface, for components such as the ICU
+    input [31:0] slv_address,
+    input [31:0] slv_write_data,
+    input [1:0] slv_mode,
+
+    // Slave interface for ICU
+    output [31:0] slv_read_data_icu,
+    input slv_select_icu,
+    
     // Instruction bus
     output [31:0] instr_bus_addr,
     input [31:0] instr_bus_data,
@@ -79,14 +89,12 @@ endfunction
 
 
 // == ICU synchronized logic
-wire in_read_space = (data_bus_addr >= 32'h4000) && (data_bus_addr <= 32'h400C);
-wire in_write_space = (data_bus_addr >= 32'h4000) && (data_bus_addr <= 32'h4004);
-wire read_requested = (data_bus_mode == 2'b01) && in_read_space;
-wire write_requested = (data_bus_mode == 2'b10) && in_write_space;
-assign data_bus_data = read_requested ? bus_read() : 32'bz;
+wire read_requested = (slv_mode == 2'b01) && slv_select_icu;
+wire write_requested = (slv_mode == 2'b10) && slv_select_icu;
+assign slv_read_data_icu = bus_read();
 
 function [31:0] bus_read();
-    case (data_bus_addr)
+    case (slv_address)
         32'h4000: bus_read = { 28'h0, icu_irq_mask };
         32'h4004: bus_read = { 28'h0, icu_irq_flags };
         32'h4008: bus_read = { 28'h0, icu_active_irq };
@@ -104,9 +112,9 @@ always @(posedge clk or negedge reset) begin
     end
     else begin
         if(write_requested) begin
-            case (data_bus_addr) // TODO in this case, we still need to sample!
-                32'h4000: icu_irq_mask <= data_bus_data[3:0];
-                default: icu_irq_flags <= data_bus_data[3:0];
+            case (slv_address) // TODO in this case, we still need to sample!
+                32'h4000: icu_irq_mask <= slv_write_data[3:0];
+                default: icu_irq_flags <= slv_write_data[3:0];
             endcase
         end
         else begin
@@ -335,11 +343,12 @@ data_bus_control_unit dbcu(
     .addr_in(alu_out_result),
     .data_out(bus_result),
     .data_in(read_data_2),
-    .data_bus_addr(data_bus_addr),
-    .data_bus_data(data_bus_data),
-    .data_bus_mode(data_bus_mode),
-    .data_bus_reqw(data_bus_reqw),
-    .data_bus_reqs(data_bus_reqs)
+    .data_bus_addr(cpu_address),
+    .data_bus_read(cpu_read_data),
+    .data_bus_write(cpu_write_data),
+    .data_bus_mode(cpu_mode),
+    .data_bus_reqw(cpu_reqw),
+    .data_bus_reqs(cpu_reqs)
 );
 
 

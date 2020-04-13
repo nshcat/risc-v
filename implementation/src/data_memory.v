@@ -4,10 +4,12 @@ module data_memory(
 
     input stall_lw,
 
-    inout [31:0] data_bus_data,
+    input [31:0] data_bus_write,
+    output [31:0] data_bus_read,
     input [31:0] data_bus_addr,
     input [1:0] data_bus_mode,
     input [1:0] data_bus_reqw,
+    input data_bus_select,
     input data_bus_reqs
 );
 
@@ -42,21 +44,18 @@ for(i = 0; i < 2; i++) begin : slices
         .width_mode(data_bus_reqw),
         .signed_mode(data_bus_reqs),
         .addr(local_addr),
-        .wdata(data_bus_data),
+        .wdata(data_bus_write),
         .rdata(read_data)
     );
 end
 
-// Whether the access is in range of the whole SRAM.
-wire addr_in_range = (data_bus_addr >= 32'h3000) && (data_bus_addr <= 32'h3FFF);
-
 // Whether the address is in range and bus mode is read/write.
-wire read_requested = addr_in_range && (data_bus_mode == 2'b01);
-wire write_requested = addr_in_range && (data_bus_mode == 2'b10);
+wire read_requested = data_bus_select && (data_bus_mode == 2'b01);
+wire write_requested = data_bus_select && (data_bus_mode == 2'b10);
 
 // Since only one of the read result wires will carry anything other than 0, we can just OR them together
 // here to retrieve the value read from memory.
-assign data_bus_data = read_requested ? (slices[0].read_data | slices[1].read_data) : 32'bz;
+assign data_bus_read = /*read_requested ? */(slices[0].read_data | slices[1].read_data) /*: 32'h0*/;
 
 
 endmodule
