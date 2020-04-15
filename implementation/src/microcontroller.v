@@ -7,8 +7,45 @@ module microcontroller(
     inout [15:0] gpio_port_a,
 
     input int_ext1,
-    input int_ext2
+    input int_ext2,
+
+    input uart_rx,
+    output uart_tx
 );
+
+// ==== Debug Port ====
+
+wire [31:0] dbg_address;
+wire [31:0] dbg_write_data;
+wire [1:0] dbg_reqw;
+wire [1:0] dbg_mode;
+wire dbg_reqs;
+wire [31:0] dbg_read_data;
+wire dbg_stall_lw;
+
+wire ds_cpu_reset;
+wire ds_cpu_halt;
+
+// The final reset signal is a combination of the PLL reset and the debug port reset
+wire cpu_reset = ds_cpu_reset & reset;
+
+debug_port dbg(
+    .clk(clk),
+    .reset(reset),
+    .ds_cpu_halt(ds_cpu_halt),
+    .ds_cpu_reset(ds_cpu_reset),
+    .uart_rx(uart_rx),
+    .uart_tx(uart_tx),
+    .dbg_address(dbg_address),
+    .dbg_write_data(dbg_write_data),
+    .dbg_read_data(dbg_read_data),
+    .dbg_reqw(dbg_reqw),
+    .dbg_reqs(dbg_reqs),
+    .dbg_mode(dbg_mode),
+    .dbg_stall_lw(dbg_stall_lw),
+    .dbg_pc(dbg_pc)
+);
+
 
 // ==== Data Bus ====
 wire [31:0] cpu_read_data;
@@ -42,10 +79,8 @@ wire [31:0] slv_read_data_tim2;
 wire [31:0] slv_read_data_systick;
 wire [15:0] slv_read_data_gpio;
 
-wire [31:0] dbg_read_data;
-
 bus_arbiter bus(
-    .ds_cpu_halt(1'h0),
+    .ds_cpu_halt(ds_cpu_halt),
 
     // CPU master
     .cpu_address(cpu_address),
@@ -56,13 +91,13 @@ bus_arbiter bus(
     .cpu_read_data(cpu_read_data),
 
     // Debug bus master
-    .dbg_address(32'h0),
-    .dbg_write_data(32'h0),
-    .dbg_reqw(2'h0),
-    .dbg_reqs(1'h0),
-    .dbg_mode(2'h0),
+    .dbg_address(dbg_address),
+    .dbg_write_data(dbg_write_data),
     .dbg_read_data(dbg_read_data),
-
+    .dbg_reqw(dbg_reqw),
+    .dbg_reqs(dbg_reqs),
+    .dbg_mode(dbg_mode),
+    
     // Bus slave interface, to be routed to all peripherals
     .slv_address(slv_address),
     .slv_write_data(slv_write_data),
@@ -97,10 +132,12 @@ wire [31:0] instr_bus_addr;
 
 // ==== CPU Core ====
 wire stall_lw;
+wire [31:0] dbg_pc;
 datapath core(
     .clk(clk),
-    .reset(reset),
+    .reset(cpu_reset),
     .stall_lw(stall_lw),
+    .ds_cpu_halt(ds_cpu_halt),
     .cpu_address(cpu_address),
     .cpu_read_data(cpu_read_data),
     .cpu_write_data(cpu_write_data),
@@ -114,14 +151,15 @@ datapath core(
     .slv_select_icu(slv_select_icu),
     .instr_bus_addr(instr_bus_addr),
     .instr_bus_data(instr_bus_data),
-    .irq_sources({tim2_irq, tim1_irq, int_ext2, int_ext1})
+    .irq_sources({tim2_irq, tim1_irq, int_ext2, int_ext1}),
+    .dbg_pc(dbg_pc)
 );
 
 // ==== Data Memory ====
 data_memory dmem(
     .clk(clk),
-    .reset(reset),
-    .stall_lw(stall_lw),
+    .reset(cpu_reset),
+    .stall_lw(stall_lw | dbg_stall_lw),
     .data_bus_read(slv_read_data_dmem),
     .data_bus_write(slv_write_data),
     .data_bus_select(slv_select_dmem),
@@ -134,8 +172,8 @@ data_memory dmem(
 // ==== Program Memory ====
 program_memory pmem(
     .clk(clk),
-    .reset(reset),
-    .stall_lw(stall_lw),
+    .reset(cpu_reset),
+    .stall_lw(stall_lw | dbg_stall_lw),
     .instr_bus_data(instr_bus_data),
     .instr_bus_address(instr_bus_addr),
     .data_bus_data(slv_read_data_pmem),
@@ -149,7 +187,7 @@ program_memory pmem(
 // ==== Peripherals ====
 leds led(
     .clk(clk),
-    .reset(reset),
+    .reset(cpu_reset),
     .data_bus_read(slv_read_data_leds),
     .data_bus_write(slv_write_data[7:0]),
     .data_bus_select(slv_select_leds),
@@ -160,7 +198,7 @@ leds led(
 
 gpio_port gpio_a(
     .clk(clk),
-    .reset(reset),
+    .reset(cpu_reset),
     .data_bus_read(slv_read_data_gpio),
     .data_bus_write(slv_write_data[15:0]),
     .data_bus_select(slv_select_gpio),
@@ -171,7 +209,7 @@ gpio_port gpio_a(
 
 systick stick(
     .clk(clk),
-    .reset(reset),
+    .reset(cpu_reset),
     .data_bus_read(slv_read_data_systick),
     .data_bus_select(slv_select_systick),
     .data_bus_addr(slv_address),
@@ -185,7 +223,7 @@ timer
 tim1
 (
     .clk(clk),
-    .reset(reset),
+    .reset(cpu_reset),
     .data_bus_read(slv_read_data_tim1),
     .data_bus_write(slv_write_data),
     .data_bus_select(slv_select_tim1),
@@ -200,7 +238,7 @@ timer
 tim2
 (
     .clk(clk),
-    .reset(reset),
+    .reset(cpu_reset),
     .data_bus_read(slv_read_data_tim2),
     .data_bus_write(slv_write_data),
     .data_bus_select(slv_select_tim2),

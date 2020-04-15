@@ -4,6 +4,8 @@ module datapath(
     
     // Whether the core is currently in the first clock cylce of a LW stall
     output stall_lw,
+    // Whether to halt execution
+    input ds_cpu_halt,
 
     // Data bus master interface
     output [31:0] cpu_address,
@@ -27,7 +29,10 @@ module datapath(
     input [31:0] instr_bus_data,
 
     // Interrupts signals
-    input [3:0] irq_sources
+    input [3:0] irq_sources,
+
+    // The current pc, for the debugging port
+    output [31:0] dbg_pc
 );
 
 // ==== First Cycle Detection ====
@@ -117,7 +122,7 @@ always @(posedge clk or negedge reset) begin
                 default: icu_irq_flags <= slv_write_data[3:0];
             endcase
         end
-        else begin
+        else if(~ds_cpu_halt) begin
             // Sample
             icu_irq_flags <= icu_new_irq_flags;
 
@@ -142,6 +147,8 @@ reg [31:0] pc;              // The current program counter
 wire [31:0] pc4 = pc + 4;   // PC + 4
 wire [31:0] pc_next;        // Value for next PC, not affected by interrupts
 wire [31:0] pc_next_final;  // Value for next PC, affected by interrupts
+
+assign dbg_pc = pc;
 
 branch_control_unit bcu(
     .cs_branch_op(cs_branch_op),
@@ -169,7 +176,7 @@ function [31:0] irq_logic();
         irq_logic = 32'h0;
     end
     else begin  
-        if(stall) begin // In a stall we keep the PC the same.
+        if(stall | ds_cpu_halt) begin // In a stall or halt we keep the PC the same.
             irq_logic = pc;
         end
         else begin
@@ -205,7 +212,7 @@ end
 // ==== Stalling logic ====
 wire stall;
 
-assign stall_lw = stall & cs_stall_lw;
+assign stall_lw = stall & cs_stall_lw & ~ds_cpu_halt; // Do not emit stall_lw signal to peripherals when halted
 
 stall_unit su(
     .clk(clk),
@@ -275,7 +282,7 @@ wire [31:0] write_data;
 
 wire [4:0] read_reg_1 = (cs_reg_1_zero == 1'b1) ? 5'b0 : instr_rs1;
 
-wire write_reg = cs_reg_write & ~stall;
+wire write_reg = cs_reg_write & ~stall & ~ds_cpu_halt;
 
 register_file registers(
     .clk(clk),

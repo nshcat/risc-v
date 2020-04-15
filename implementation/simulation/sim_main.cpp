@@ -64,6 +64,7 @@ int main(int argc, char** argv, char** env) {
 	tb->reset = 1;
 	tb->int_ext1 = 1;
 	tb->int_ext2 = 1;
+	tb->uart_rx = 0;
 	main_time++;
 
 	tb->eval();
