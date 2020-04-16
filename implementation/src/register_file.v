@@ -79,7 +79,11 @@ always @(posedge clk or negedge reset) begin
         else
 `endif
         if(cs_reg_write) begin
+`ifndef FEATURE_RV32E
             regs[write_reg] <= write_data;
+`else
+            regs[write_reg[3:0]] <= write_data;
+`endif
         end
     end
     else begin
@@ -122,9 +126,13 @@ always @(posedge clk or negedge reset) begin
     end
 end
 
-
-assign read_data_1 = (read_reg_1 == 5'b0) ? 32'b0 : regs[read_reg_1];
-assign read_data_2 = (read_reg_2 == 5'b0) ? 32'b0 : regs[read_reg_2];
+`ifndef FEATURE_RV32E
+    assign read_data_1 = (read_reg_1 == 5'b0) ? 32'b0 : regs[read_reg_1];
+    assign read_data_2 = (read_reg_2 == 5'b0) ? 32'b0 : regs[read_reg_2];
+`else
+    assign read_data_1 = (read_reg_1 == 5'b0) ? 32'b0 : regs[read_reg_1[3:0]];
+    assign read_data_2 = (read_reg_2 == 5'b0) ? 32'b0 : regs[read_reg_2[3:0]];
+`endif
 
 `ifdef FEATURE_DBG_PORT
     wire read_requested = (slv_mode == 2'b01) && slv_select_regs;
