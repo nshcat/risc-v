@@ -27,14 +27,37 @@ parameter STATE_IDLE = 6'h0;
 parameter STATE_RCV_COMMAND_1 = 6'h1; // Receiving first command char
 parameter STATE_RCV_COMMAND_2 = 6'h2; // Receiving second command char
 parameter STATE_SEND_RESPONSE = 6'h3; // Receiving second command char
-parameter STATE_RCV_MR_ADR = 6'h4; // Receiving source address for memory read command
+parameter STATE_RCV_MEM_ADR = 6'h4; // Receiving source address for memory read/write command
 parameter STATE_MR_PH1 = 6'h5; // Doing memory read, phase 1
 parameter STATE_MR_PH2 = 6'h6; // Doing memory read, phase 2
+parameter STATE_RCV_MW_VAL = 6'h7; // Receiving value for memory read command
+parameter STATE_MW = 6'h8; // Executing memory write operation
+
+
+
+
+
+parameter MEM_OP_READ = 1'h0;   // Memory access types used to make reusing of STATE_RCV_MEM_ADR
+parameter MEM_OP_WRITE = 1'h1;  // Functionality possible. The state after address receive (MW/MR)
+                                // is remembered to be transitioned to after address receive completes.
+
+reg mem_op, next_mem_op;
+
+always @(posedge clk or negedge reset) begin
+    if(!reset) begin
+        mem_op <= MEM_OP_READ;
+    end
+    else begin
+        mem_op <= next_mem_op;
+    end
+end
+
+
+
 
 reg halted, next_halted;
 reg [5:0] current_state;
 reg [5:0] next_state;
-
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
@@ -61,19 +84,26 @@ always @(posedge clk or negedge reset) begin
 end
 
 reg [15:0] command, next_command;           // Command code
-reg [31:0] address, next_address;           // Address argument
+reg [31:0] address, next_address;           // Data bus address argument
 reg[1:0] address_byte, next_address_byte;   // Which address byte is currently being received
+
+reg [31:0] value, next_value;           // Data bus write value argument
+reg[1:0] value_byte, next_value_byte;   // Which write value byte is currently being received
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
         command <= 16'h0;
         address <= 32'h0;
         address_byte <= 2'h0;
+        value <= 32'h0;
+        value_byte <= 2'h0;
     end
     else begin
         command <= next_command;
         address <= next_address;
         address_byte <= next_address_byte;
+        value <= next_value;
+        value_byte <= next_value_byte;
     end
 end
 
@@ -111,12 +141,15 @@ always @(*) begin
     // Defaults to avoid latches
     next_state = current_state;
     next_data = 8'h0;
+    next_mem_op = mem_op;
     next_command = command;
     next_address = address;
     next_response_pos = response_pos;
     next_response_size = response_size;
     next_address_byte = address_byte;
     next_halted = halted;
+    next_value = value;
+    next_value_byte = value_byte;
     next_start_tx = 1'b0; // Turns off start tx strobe after its been on
 
     for (i = 0; i < 6; i++) begin
@@ -196,7 +229,14 @@ always @(*) begin
 
                     "MR": begin // Memory read
                         next_address_byte = 2'd0;
-                        next_state = STATE_RCV_MR_ADR;
+                        next_mem_op = MEM_OP_READ;
+                        next_state = STATE_RCV_MEM_ADR;
+                    end
+
+                    "MW": begin // Memory write
+                        next_address_byte = 2'd0;
+                        next_mem_op = MEM_OP_WRITE;
+                        next_state = STATE_RCV_MEM_ADR;
                     end
 
                     default: begin
@@ -211,7 +251,45 @@ always @(*) begin
             end
         end
 
-        STATE_RCV_MR_ADR: begin
+        STATE_RCV_MW_VAL: begin
+            // Is another byte ready?
+            if(rx_done) begin
+                next_value_byte = value_byte + 2'd1;
+
+                case(value_byte)
+                    2'd0: begin
+                        next_value = { rx_data, 24'h0 };
+                    end
+                    2'd1: begin
+                        next_value = { value[31:24], rx_data, 16'h0 };
+                    end
+                    2'd2: begin
+                        next_value = { value[31:16], rx_data, 8'h0 };
+                    end
+                    2'd3: begin
+                        next_value = { value[31:8], rx_data };
+
+                        // Are we actually allowed to perform a memory operation right now?
+                        // We only have control over the data bus if the CPU is currently halted.
+                        if(halted) begin
+                            next_state = STATE_MW;
+                        end
+                        else begin 
+                            // Send an error message, doing a memory write is not allowed right now. We don't
+                            // Have control over the data bus while the CPU is running.
+                            next_response_pos = 3'h0;
+                            next_response_size = 3'd2;
+                            next_response[0] = "N";
+                            next_response[1] = "O";
+                            next_state = STATE_SEND_RESPONSE;
+                            next_start_tx = 1'b1; // Already start transmitting first byte
+                        end
+                    end
+                endcase
+            end
+        end
+
+        STATE_RCV_MEM_ADR: begin
             if(rx_done) begin
                 next_address_byte = address_byte + 2'd1;
 
@@ -228,11 +306,21 @@ always @(*) begin
                     2'd3: begin
                         next_address = { address[31:8], rx_data };
 
+                        // Is the received address part of a memory write operation?
+                        // If so, we can't yet fail if the CPU is not halted, since the debugger
+                        // will still send the new memory value.
+                        if(mem_op == MEM_OP_WRITE) begin
+                            // Begin receiving the value to write to the requested memory location
+                            next_value_byte = 2'h0;
+                            next_state = STATE_RCV_MW_VAL;
+                        end
                         // Check if CPU is halted, since otherwise we have no control over the bus
-                        if(halted) begin
+                        else if(halted) begin
                             next_state = STATE_MR_PH1;
                         end
-                        else begin
+                        else begin 
+                            // Send an error message, doing a memory read is not allowed right now. We don't
+                            // Have control over the data bus while the CPU is running.
                             next_response_pos = 3'h0;
                             next_response_size = 3'd2;
                             next_response[0] = "N";
@@ -262,6 +350,15 @@ always @(*) begin
             next_start_tx = 1'b1; // Already start transmitting first byte
         end
 
+        STATE_MW: begin // The bus control signals for performing the actual write are done combinationally below
+            next_response_pos = 3'h0;
+            next_response_size = 3'd2;
+            next_response[0] = "O";
+            next_response[1] = "K";
+            next_state = STATE_SEND_RESPONSE;
+            next_start_tx = 1'b1; // Already start transmitting first byte
+        end
+
         STATE_SEND_RESPONSE: begin
             if(tx_done) begin
                 // Are we already done?
@@ -270,7 +367,7 @@ always @(*) begin
                     next_state = STATE_IDLE;
                 end
                 else begin
-                    // Otherwise begin
+                    // Otherwise continue sending the contents of the response buffer
                     next_start_tx = 1'b1;
                     next_response_pos = response_pos + 3'h1;
                 end
@@ -335,12 +432,12 @@ sync(
 assign ds_cpu_reset = 1'b1;
 assign ds_cpu_halt = halted;
 
-// ==== TODO remove this
+// ==== Debug bus master control signal generation
 assign dbg_address = address;
-assign dbg_mode = ((current_state == STATE_MR_PH1 || current_state == STATE_MR_PH2) ? 2'b01 : 2'b00);
+assign dbg_mode = ((current_state == STATE_MR_PH1 || current_state == STATE_MR_PH2) ? 2'b01 : ((current_state == STATE_MW) ? 2'b10 : 2'b00));
 assign dbg_reqs = 1'h0;
 assign dbg_reqw = 2'h0;
-assign dbg_write_data = 32'h0;
+assign dbg_write_data = value;
 assign dbg_stall_lw = (current_state == STATE_MR_PH1);
 
 endmodule

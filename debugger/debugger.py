@@ -38,6 +38,16 @@ class Shell(cmd.Cmd):
         else:
             return None
     
+    def write_memory_word(self, adr, val):
+        payload = struct.pack('>II', adr, val)
+        cmd = b'+MW'   
+        res = self.send_checked(cmd + payload, 2)
+        
+        if res != None:
+            return True
+        else:
+            return None
+    
     def retrieve_state(self):
         res = self.send_checked(b'+ST', 3)
         
@@ -95,6 +105,26 @@ class Shell(cmd.Cmd):
     def do_exit(self, arg):
         return True
     
+    def do_write_memory(self, arg):
+        'Write a word to given memory address'
+        args = arg.split()
+        
+        if len(args) != 2:
+            print("Expected exactly two arguments")
+            print("write_memory [dest] [value]")
+            return
+        
+        if self.state != DebuggerState.HALTED:
+            print("Can't perform memory write on running CPU. Halt execution first.")
+            return
+        
+        adr = int(args[0], 0)
+        val = int(args[1], 0)
+        res = self.write_memory_word(adr, val)
+        
+        if res == None:
+            print("Failed to perform memory write")
+    
     def do_read_leds(self, arg):
         'Read LED state'
         if self.state != DebuggerState.HALTED:
@@ -109,12 +139,12 @@ class Shell(cmd.Cmd):
             print("Failed to read LED state")
             
     def do_read_memory(self, arg):
-        'Read word from given hexadecimal memory address'
+        'Read word from given memory address'
         if self.state != DebuggerState.HALTED:
             print("Can't perform memory read on running CPU. Halt execution first.")
             return
         
-        adr = int(arg, 16)
+        adr = int(arg, 0)
         res = self.read_memory_word(adr)
         if res != None:
             print(f"Read result: {format(res, '08x')}")
