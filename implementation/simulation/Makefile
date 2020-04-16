@@ -10,6 +10,24 @@
 # Lesser General Public License Version 3 or the Perl Artistic License
 # Version 2.0.
 #
+
+
+# Configuration options
+FEATURE_DBG_PORT?=OFF
+FEATURE_RV32E?=OFF
+
+# Build defines
+DEFINES = 
+
+ifeq ($(FEATURE_DBG_PORT),ON)
+    DEFINES += +define+FEATURE_DBG_PORT
+endif
+
+ifeq ($(FEATURE_RV32E),ON)
+    DEFINES += +define+FEATURE_RV32E
+endif
+
+
 ######################################################################
 # Check for sanity to avoid later confusion
 
@@ -35,6 +53,9 @@ endif
 VERILATOR_FLAGS =
 # Generate C++ in executable form
 VERILATOR_FLAGS += -cc --exe
+
+VERILATOR_FLAGS += $(DEFINES)
+
 # Generate makefile dependencies (not shown as complicates the Makefile)
 #VERILATOR_FLAGS += -MMD
 # Optimize

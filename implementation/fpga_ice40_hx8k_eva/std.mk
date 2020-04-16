@@ -1,9 +1,24 @@
-TARGET_STEM = riscv
+# Configuration options
+FEATURE_DBG_PORT?=OFF
+FEATURE_RV32E?=OFF
 
+# Build defines
+DEFINES = 
+
+ifeq ($(FEATURE_DBG_PORT),ON)
+    DEFINES += -D FEATURE_DBG_PORT
+endif
+
+ifeq ($(FEATURE_RV32E),ON)
+    DEFINES += -D FEATURE_RV32E
+endif
+
+
+TARGET_STEM = riscv
 PINS_FILE = pins.pcf
 
 YOSYS_LOG  = synth.log
-YOSYS_ARGS = -v3 -l $(YOSYS_LOG) -D YOSYS_HX8K
+YOSYS_ARGS = -v3 -l $(YOSYS_LOG) -D YOSYS_HX8K $(DEFINES)
 
 VERILOG_SRCS = $(wildcard ./../src/*.v) $(wildcard ./src/*.v)
 

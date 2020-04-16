@@ -7,45 +7,57 @@ module microcontroller(
     inout [15:0] gpio_port_a,
 
     input int_ext1,
-    input int_ext2,
+    input int_ext2
 
+`ifdef FEATURE_DBG_PORT
+    , // This is ugly, but has to be done
+
+    // Debug port UART
     input uart_rx,
     output uart_tx
+`endif
+
 );
 
 // ==== Debug Port ====
 
-wire [31:0] dbg_address;
-wire [31:0] dbg_write_data;
-wire [1:0] dbg_reqw;
-wire [1:0] dbg_mode;
-wire dbg_reqs;
-wire [31:0] dbg_read_data;
-wire dbg_stall_lw;
+`ifdef FEATURE_DBG_PORT
+    wire [31:0] dbg_address;
+    wire [31:0] dbg_write_data;
+    wire [1:0] dbg_reqw;
+    wire [1:0] dbg_mode;
+    wire dbg_reqs;
+    wire [31:0] dbg_read_data;
+    wire dbg_stall_lw;
 
-wire ds_cpu_reset;
-wire ds_cpu_halt;
+    wire ds_cpu_reset;
+    wire ds_cpu_halt;   
+
+    debug_port dbg(
+        .clk(clk),
+        .reset(reset),
+        .ds_cpu_halt(ds_cpu_halt),
+        .ds_cpu_reset(ds_cpu_reset),
+        .uart_rx(uart_rx),
+        .uart_tx(uart_tx),
+        .dbg_address(dbg_address),
+        .dbg_write_data(dbg_write_data),
+        .dbg_read_data(dbg_read_data),
+        .dbg_reqw(dbg_reqw),
+        .dbg_reqs(dbg_reqs),
+        .dbg_mode(dbg_mode),
+        .dbg_stall_lw(dbg_stall_lw),
+        .dbg_pc(dbg_pc)
+    );
+`else
+    // Debug signals are disabled if the debug port feature is disabled
+    wire ds_cpu_reset = 1'b1;
+    wire ds_cpu_halt = 1'b0;
+    wire dbg_stall_lw = 1'b0;
+`endif
 
 // The final reset signal is a combination of the PLL reset and the debug port reset
 wire cpu_reset = ds_cpu_reset & reset;
-
-debug_port dbg(
-    .clk(clk),
-    .reset(reset),
-    .ds_cpu_halt(ds_cpu_halt),
-    .ds_cpu_reset(ds_cpu_reset),
-    .uart_rx(uart_rx),
-    .uart_tx(uart_tx),
-    .dbg_address(dbg_address),
-    .dbg_write_data(dbg_write_data),
-    .dbg_read_data(dbg_read_data),
-    .dbg_reqw(dbg_reqw),
-    .dbg_reqs(dbg_reqs),
-    .dbg_mode(dbg_mode),
-    .dbg_stall_lw(dbg_stall_lw),
-    .dbg_pc(dbg_pc)
-);
-
 
 // ==== Data Bus ====
 wire [31:0] cpu_read_data;
@@ -79,6 +91,13 @@ wire [31:0] slv_read_data_tim2;
 wire [31:0] slv_read_data_systick;
 wire [15:0] slv_read_data_gpio;
 
+`ifdef FEATURE_DBG_PORT
+    // The register file is only mapped into the data bus address space if the
+    // debug port feature is enabled
+    wire slv_select_regs;
+    wire [31:0] slv_read_data_regs;
+`endif
+
 bus_arbiter bus(
     .ds_cpu_halt(ds_cpu_halt),
 
@@ -90,6 +109,7 @@ bus_arbiter bus(
     .cpu_mode(cpu_mode),
     .cpu_read_data(cpu_read_data),
 
+`ifdef FEATURE_DBG_PORT
     // Debug bus master
     .dbg_address(dbg_address),
     .dbg_write_data(dbg_write_data),
@@ -97,6 +117,7 @@ bus_arbiter bus(
     .dbg_reqw(dbg_reqw),
     .dbg_reqs(dbg_reqs),
     .dbg_mode(dbg_mode),
+`endif
     
     // Bus slave interface, to be routed to all peripherals
     .slv_address(slv_address),
@@ -124,6 +145,13 @@ bus_arbiter bus(
     .slv_read_data_tim1(slv_read_data_tim1),
     .slv_read_data_tim2(slv_read_data_tim2),
     .slv_read_data_gpio(slv_read_data_gpio)
+
+`ifdef FEATURE_DBG_PORT
+    ,
+    .slv_select_regs(slv_select_regs),
+    .slv_read_data_regs(slv_read_data_regs)
+`endif
+
 );
 
 // ==== Instruction Bus ====
@@ -153,6 +181,12 @@ datapath core(
     .instr_bus_data(instr_bus_data),
     .irq_sources({tim2_irq, tim1_irq, int_ext2, int_ext1}),
     .dbg_pc(dbg_pc)
+
+`ifdef FEATURE_DBG_PORT
+    ,
+    .slv_select_regs(slv_select_regs),
+    .slv_read_data_regs(slv_read_data_regs)
+`endif
 );
 
 // ==== Data Memory ====

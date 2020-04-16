@@ -23,7 +23,13 @@ module datapath(
     // Slave interface for ICU
     output [31:0] slv_read_data_icu,
     input slv_select_icu,
-    
+
+`ifdef FEATURE_DBG_PORT
+    // Slave interface for register file
+    output [31:0] slv_read_data_regs,
+    input slv_select_regs,
+`endif
+
     // Instruction bus
     output [31:0] instr_bus_addr,
     input [31:0] instr_bus_data,
@@ -94,16 +100,16 @@ endfunction
 
 
 // == ICU synchronized logic
-wire read_requested = (slv_mode == 2'b01) && slv_select_icu;
-wire write_requested = (slv_mode == 2'b10) && slv_select_icu;
-assign slv_read_data_icu = bus_read();
+wire icu_read_requested = (slv_mode == 2'b01) && slv_select_icu;
+wire icu_write_requested = (slv_mode == 2'b10) && slv_select_icu;
+assign slv_read_data_icu = icu_bus_read();
 
-function [31:0] bus_read();
+function [31:0] icu_bus_read();
     case (slv_address)
-        32'h4000: bus_read = { 28'h0, icu_irq_mask };
-        32'h4004: bus_read = { 28'h0, icu_irq_flags };
-        32'h4008: bus_read = { 28'h0, icu_active_irq };
-        default: bus_read = { 28'h0, icu_active_flag };
+        32'h4000: icu_bus_read = { 28'h0, icu_irq_mask };
+        32'h4004: icu_bus_read = { 28'h0, icu_irq_flags };
+        32'h4008: icu_bus_read = { 28'h0, icu_active_irq };
+        default: icu_bus_read = { 28'h0, icu_active_flag };
     endcase
 endfunction
 
@@ -116,7 +122,7 @@ always @(posedge clk or negedge reset) begin
         icu_in_isr <= 1'b0;
     end
     else begin
-        if(write_requested) begin
+        if(icu_write_requested) begin
             case (slv_address) // TODO in this case, we still need to sample!
                 32'h4000: icu_irq_mask <= slv_write_data[3:0];
                 default: icu_irq_flags <= slv_write_data[3:0];
@@ -294,6 +300,17 @@ register_file registers(
     .write_data(write_data),
     .read_data_1(read_data_1),
     .read_data_2(read_data_2)
+
+`ifdef FEATURE_DBG_PORT
+    ,
+    
+    // Data bus slave interface
+    .slv_address(slv_address),
+    .slv_write_data(slv_write_data),
+    .slv_mode(slv_mode),
+    .slv_select_regs(slv_select_regs),
+    .slv_read_data_regs(slv_read_data_regs)
+`endif
 );
 
 wire [31:0] read_data_1;    // First output of register read
