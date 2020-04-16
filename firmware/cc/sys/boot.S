@@ -67,12 +67,15 @@ _isr_common:
     sw x13, 11*4(t0)
     sw x14, 12*4(t0)
     sw x15, 13*4(t0)
+    
+#ifndef RV32E
     sw x16, 14*4(t0)
     sw x17, 15*4(t0) # We don't have to save the saved registers, since that's the job of the ISR function
     sw x28, 16*4(t0)
     sw x29, 17*4(t0)
     sw x30, 18*4(t0)
     sw x31, 19*4(t0)
+#endif
     
     # Retrieve IRQ number. It is stored in the interrupt control unit.
     lui t0, %hi(ICU_IRQ_ACTIVE_NUM)
@@ -124,12 +127,15 @@ _isr_common:
     lw x13, 11*4(t0)
     lw x14, 12*4(t0)
     lw x15, 13*4(t0)
+    
+#ifndef RV32E
     lw x16, 14*4(t0)
     lw x17, 15*4(t0)
     lw x28, 16*4(t0)
     lw x29, 17*4(t0)
     lw x30, 18*4(t0)
     lw x31, 19*4(t0)
+#endif
     
     # Since we subtracted 4 from the SP prior to saving it, we have to add it again after restoring t0.
     lw t0, 0(sp)
@@ -189,8 +195,8 @@ _start:
 	
 .copy_loop:
 	bgeu t1, t2, .copy_end		# Stop if cur_dest > dest_end
-	lw t3, 0(t0)
-	sw t3, 0(t1)
+	lw s1, 0(t0)                # We use s1 here instead of t3 to support RV32E
+	sw s1, 0(t1)
 	
 	addi t0, t0, 4
 	addi t1, t1, 4
