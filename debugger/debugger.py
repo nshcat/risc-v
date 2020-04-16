@@ -99,11 +99,55 @@ class Shell(cmd.Cmd):
         if self.state == DebuggerState.DISCONNECTED:
             self.prompt = f'{self.state.name}> '
         else:
-            self.prompt = f'{self.port} {self.state.name}> '
+            self.prompt = f'{self.port}:{self.state.name}> '
             
             
     def do_exit(self, arg):
         return True
+    
+    def do_show(self, arg):
+        'Show the current postition in the firmware'
+        
+        if self.state != DebuggerState.HALTED:
+            print("Can't show position in firmware when CPU is running. Halt execution first.")
+            return
+        
+        # Retrieve the PC
+        pc = self.retrieve_pc()
+        
+        if pc == None:
+            print("Failed to retrieve current program counter")
+            return
+        
+        # Determine start. we want to show 5 lines in total with the current
+        # instruction in the middle. But when the PC is close to, lets say, 0x0,
+        # we cant simply subtract 8 byte from it.
+        start_addr = max(pc - 8, 0)
+        
+        instrs = []
+        for instr_offset in range(5):
+            addr_offset = instr_offset * 4  # Four bytes per instruction
+            absolute_addr = start_addr + addr_offset
+            
+            # Try to read the instruction
+            instr = self.read_memory_word(absolute_addr)
+            
+            if instr == None:
+                print(f"Failed to read instruction at address 0x{format(absolute_addr, '08x')}")
+                return
+            
+            instrs.append(instr)
+            
+        # Format output
+        cur_instr_idx = pc//4 if pc <= 4 else 2
+        
+        machine = rv_disas(PC=start_addr)
+        
+        for instr_idx in range(5):
+            prefix = f"{'->' if instr_idx == cur_instr_idx else '  '} "
+            print(f"{prefix}{machine.disassemble(instrs[instr_idx]).format()}")
+        
+        
     
     def do_write_memory(self, arg):
         'Write a word to given memory address'
@@ -147,7 +191,7 @@ class Shell(cmd.Cmd):
         adr = int(arg, 0)
         res = self.read_memory_word(adr)
         if res != None:
-            print(f"Read result: {format(res, '08x')}")
+            print(f"Read result: 0x{format(res, '08x')}")
         else:
             print("Failed to perform memory read")
         
