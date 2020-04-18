@@ -1,9 +1,11 @@
 module gpio_port(
     input clk,
     input reset,
-    inout [31:0] data_bus_data,
+    input [15:0] data_bus_write,
+    output [15:0] data_bus_read,
     input [31:0] data_bus_addr,
     input [1:0] data_bus_mode,  // 00: Nothing, 01: Read, 10: Write
+    input data_bus_select,
     inout [15:0] gpio_pins
 );
 
@@ -38,23 +40,21 @@ wire [15:0] sync_in; // The synchronized input vector. Can be safely used in clo
 
 // ==== Reading ====
 
-wire addr_in_readonly = (data_bus_addr == 32'h403C);
-wire addr_in_rw = (data_bus_addr >= 32'h4034) && (data_bus_addr <= 32'h4038);
-wire read_requested = (data_bus_mode == 2'b01) && (addr_in_readonly || addr_in_rw);
+wire read_requested = (data_bus_mode == 2'b01) && data_bus_select;
 
-assign data_bus_data = read_requested ? bus_read() : 32'bz;
+assign data_bus_read = bus_read();
 
-function [31:0] bus_read();
+function [15:0] bus_read();
     case (data_bus_addr)
-        32'h4034: bus_read = { 16'h0, pin_direction };
-        32'h4038: bus_read = { 16'h0, write_data };
-        default: bus_read = { 16'h0, read_data };
+        32'h4034: bus_read = pin_direction;
+        32'h4038: bus_read = write_data;
+        default: bus_read = read_data;
     endcase
 endfunction
 
 
 // ==== Writing and Logic ====
-wire write_requested = (data_bus_mode == 2'b10) && addr_in_rw;
+wire write_requested = (data_bus_mode == 2'b10) && data_bus_select;
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
@@ -66,8 +66,8 @@ always @(posedge clk or negedge reset) begin
         // If we are requested to do a write, handle that
         if(write_requested) begin
             case (data_bus_addr)
-                32'h4034: pin_direction <= data_bus_data[15:0];
-                default: write_data <= data_bus_data[15:0];
+                32'h4034: pin_direction <= data_bus_write;
+                default: write_data <= data_bus_write;
             endcase
         end
 

@@ -4,20 +4,41 @@ module datapath(
     
     // Whether the core is currently in the first clock cylce of a LW stall
     output stall_lw,
+    // Whether to halt execution
+    input ds_cpu_halt,
 
-    // Data bus
-    inout [31:0] data_bus_data,
-    output [31:0] data_bus_addr,
-    output [1:0] data_bus_mode,
-    output [1:0] data_bus_reqw,
-    output data_bus_reqs,
+    // Data bus master interface
+    output [31:0] cpu_address,
+    output [31:0] cpu_write_data,
+    input [31:0] cpu_read_data,
+    output [1:0] cpu_mode,
+    output [1:0] cpu_reqw,
+    output cpu_reqs,
+
+    // Shared data bus slave interface, for components such as the ICU
+    input [31:0] slv_address,
+    input [31:0] slv_write_data,
+    input [1:0] slv_mode,
+
+    // Slave interface for ICU
+    output [31:0] slv_read_data_icu,
+    input slv_select_icu,
+
+`ifdef FEATURE_DBG_PORT
+    // Slave interface for register file
+    output [31:0] slv_read_data_regs,
+    input slv_select_regs,
+`endif
 
     // Instruction bus
     output [31:0] instr_bus_addr,
     input [31:0] instr_bus_data,
 
     // Interrupts signals
-    input [3:0] irq_sources
+    input [3:0] irq_sources,
+
+    // The current pc, for the debugging port
+    output [31:0] dbg_pc
 );
 
 // ==== First Cycle Detection ====
@@ -79,18 +100,16 @@ endfunction
 
 
 // == ICU synchronized logic
-wire in_read_space = (data_bus_addr >= 32'h4000) && (data_bus_addr <= 32'h400C);
-wire in_write_space = (data_bus_addr >= 32'h4000) && (data_bus_addr <= 32'h4004);
-wire read_requested = (data_bus_mode == 2'b01) && in_read_space;
-wire write_requested = (data_bus_mode == 2'b10) && in_write_space;
-assign data_bus_data = read_requested ? bus_read() : 32'bz;
+wire icu_read_requested = (slv_mode == 2'b01) && slv_select_icu;
+wire icu_write_requested = (slv_mode == 2'b10) && slv_select_icu;
+assign slv_read_data_icu = icu_bus_read();
 
-function [31:0] bus_read();
-    case (data_bus_addr)
-        32'h4000: bus_read = { 28'h0, icu_irq_mask };
-        32'h4004: bus_read = { 28'h0, icu_irq_flags };
-        32'h4008: bus_read = { 28'h0, icu_active_irq };
-        default: bus_read = { 28'h0, icu_active_flag };
+function [31:0] icu_bus_read();
+    case (slv_address)
+        32'h4000: icu_bus_read = { 28'h0, icu_irq_mask };
+        32'h4004: icu_bus_read = { 28'h0, icu_irq_flags };
+        32'h4008: icu_bus_read = { 28'h0, icu_active_irq };
+        default: icu_bus_read = { 28'h0, icu_active_flag };
     endcase
 endfunction
 
@@ -103,13 +122,13 @@ always @(posedge clk or negedge reset) begin
         icu_in_isr <= 1'b0;
     end
     else begin
-        if(write_requested) begin
-            case (data_bus_addr) // TODO in this case, we still need to sample!
-                32'h4000: icu_irq_mask <= data_bus_data[3:0];
-                default: icu_irq_flags <= data_bus_data[3:0];
+        if(icu_write_requested) begin
+            case (slv_address) // TODO in this case, we still need to sample!
+                32'h4000: icu_irq_mask <= slv_write_data[3:0];
+                default: icu_irq_flags <= slv_write_data[3:0];
             endcase
         end
-        else begin
+        else if(~ds_cpu_halt) begin
             // Sample
             icu_irq_flags <= icu_new_irq_flags;
 
@@ -134,6 +153,8 @@ reg [31:0] pc;              // The current program counter
 wire [31:0] pc4 = pc + 4;   // PC + 4
 wire [31:0] pc_next;        // Value for next PC, not affected by interrupts
 wire [31:0] pc_next_final;  // Value for next PC, affected by interrupts
+
+assign dbg_pc = pc;
 
 branch_control_unit bcu(
     .cs_branch_op(cs_branch_op),
@@ -161,7 +182,7 @@ function [31:0] irq_logic();
         irq_logic = 32'h0;
     end
     else begin  
-        if(stall) begin // In a stall we keep the PC the same.
+        if(stall | ds_cpu_halt) begin // In a stall or halt we keep the PC the same.
             irq_logic = pc;
         end
         else begin
@@ -197,7 +218,7 @@ end
 // ==== Stalling logic ====
 wire stall;
 
-assign stall_lw = stall & cs_stall_lw;
+assign stall_lw = stall & cs_stall_lw & ~ds_cpu_halt; // Do not emit stall_lw signal to peripherals when halted
 
 stall_unit su(
     .clk(clk),
@@ -267,7 +288,7 @@ wire [31:0] write_data;
 
 wire [4:0] read_reg_1 = (cs_reg_1_zero == 1'b1) ? 5'b0 : instr_rs1;
 
-wire write_reg = cs_reg_write & ~stall;
+wire write_reg = cs_reg_write & ~stall & ~ds_cpu_halt;
 
 register_file registers(
     .clk(clk),
@@ -279,6 +300,17 @@ register_file registers(
     .write_data(write_data),
     .read_data_1(read_data_1),
     .read_data_2(read_data_2)
+
+`ifdef FEATURE_DBG_PORT
+    ,
+    
+    // Data bus slave interface
+    .slv_address(slv_address),
+    .slv_write_data(slv_write_data),
+    .slv_mode(slv_mode),
+    .slv_select_regs(slv_select_regs),
+    .slv_read_data_regs(slv_read_data_regs)
+`endif
 );
 
 wire [31:0] read_data_1;    // First output of register read
@@ -335,11 +367,12 @@ data_bus_control_unit dbcu(
     .addr_in(alu_out_result),
     .data_out(bus_result),
     .data_in(read_data_2),
-    .data_bus_addr(data_bus_addr),
-    .data_bus_data(data_bus_data),
-    .data_bus_mode(data_bus_mode),
-    .data_bus_reqw(data_bus_reqw),
-    .data_bus_reqs(data_bus_reqs)
+    .data_bus_addr(cpu_address),
+    .data_bus_read(cpu_read_data),
+    .data_bus_write(cpu_write_data),
+    .data_bus_mode(cpu_mode),
+    .data_bus_reqw(cpu_reqw),
+    .data_bus_reqs(cpu_reqs)
 );
 
 

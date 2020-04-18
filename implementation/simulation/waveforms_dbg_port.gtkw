@@ -1,0 +1,61 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Apr 15 20:51:43 2020
+[*]
+[dumpfile] "/home/katharina/git/risc-v/implementation/simulation/logs/vlt_dump.vcd"
+[dumpfile_mtime] "Wed Apr 15 20:42:35 2020"
+[dumpfile_size] 533510679
+[savefile] "/home/katharina/git/risc-v/implementation/simulation/waveforms_dbg_port.gtkw"
+[timestart] 1
+[size] 1690 795
+[pos] 251 135
+*0.000000 9 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.testbench.
+[treeopen] TOP.testbench.uut.
+[sst_width] 349
+[signals_width] 222
+[sst_expanded] 1
+[sst_vpaned_height] 218
+@200
+-Clock & PC
+@28
+TOP.testbench.uut.cpu_reset
+TOP.clk
+@22
+TOP.testbench.uut.core.pc[31:0]
+@200
+-
+-Debug Port
+@c00024
+[color] 3
++{state} TOP.testbench.uut.dbg.current_state[5:0]
+@28
+(0)TOP.testbench.uut.dbg.current_state[5:0]
+(1)TOP.testbench.uut.dbg.current_state[5:0]
+(2)TOP.testbench.uut.dbg.current_state[5:0]
+(3)TOP.testbench.uut.dbg.current_state[5:0]
+(4)TOP.testbench.uut.dbg.current_state[5:0]
+(5)TOP.testbench.uut.dbg.current_state[5:0]
+@1401200
+-group_end
+@22
+[color] 3
++{bus_address} TOP.testbench.uut.dbg.address[31:0]
+@28
+[color] 3
++{bus_mode} TOP.testbench.uut.dbg.dbg_mode[1:0]
+[color] 3
++{bus_stall} TOP.testbench.uut.dbg.dbg_stall_lw
+@22
+[color] 3
++{bus_read} TOP.testbench.uut.dbg.dbg_read_data[31:0]
+@28
++{cpu_halt} TOP.testbench.uut.dbg.ds_cpu_halt
+@200
+-
+-Bus Arbiter
+@28
+TOP.testbench.uut.bus.ds_cpu_halt
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,6 +1,6 @@
 TARGET=flash
 SYS_SOURCES=$(wildcard ./../../sys/*.c)
-INTERNAL_SOURCES=./../../sys/boot.s $(SYS_SOURCES) $(SOURCES)
+INTERNAL_SOURCES=./../../sys/boot.S $(SYS_SOURCES) $(SOURCES)
 CC=riscv64-linux-gnu-gcc
 OBJCOPY=riscv64-linux-gnu-objcopy
 OBJDUMP=riscv64-linux-gnu-objdump
@@ -8,6 +8,9 @@ SIZE=riscv64-linux-gnu-size
 NM=riscv64-linux-gnu-nm
 READELF=riscv64-linux-gnu-readelf
 OPT?=NONE
+ABI?=rv32i  # Or rv32e for embedded version with reduced register count
+
+DEFINES =
 
 ifeq ($(OPT),SIZE)
     OPT_FLAGS=-Os
@@ -15,8 +18,17 @@ else
     OPT_FLAGS=-O0
 endif
 
+ifeq ($(ABI),rv32e)
+    ARCH_FLAGS = -march=rv32e
+    ABI_FLAGS = -mabi=ilp32e
+    DEFINES += -DRV32E
+else
+    ARCH_FLAGS = -march=rv32i
+    ABI_FLAGS = -mabi=ilp32
+endif
 
-CFLAGS=-nostdlib -Wl,--build-id=none -Wl,--gc-sections $(OPT_FLAGS) -fdata-sections -ffunction-sections -nostartfiles -march=rv32i -mabi=ilp32 -I./../../sys -I./include -T./../../sys/link.ld -g
+
+CFLAGS=-nostdlib -Wl,--build-id=none -Wl,--gc-sections $(OPT_FLAGS) -fdata-sections -ffunction-sections -nostartfiles $(ARCH_FLAGS) $(ABI_FLAGS) $(DEFINES) -I./../../sys -I./include -T./../../sys/link.ld -g
 LDFLAGS=
 
 all: elf flat fpga copy mem_usage

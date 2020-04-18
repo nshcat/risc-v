@@ -38,3 +38,7 @@ Timer 2:
 
 LEDs:
 0x40F0      Led State
+
+Register File:   (Only if debug bus feature is enabled)
+0x4100 - 0x413C  (RV32E)
+0x4100 - 0x417C  (RV32I)

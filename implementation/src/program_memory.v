@@ -7,11 +7,12 @@ module program_memory(
     output [31:0] instr_bus_data,
 
     // === Data bus
-    inout [31:0] data_bus_data,
+    output [31:0] data_bus_data,
     input [31:0] data_bus_addr,
     input [1:0] data_bus_mode,
     input [1:0] data_bus_reqw,
     input data_bus_reqs,
+    input data_bus_select,
 
     input stall_lw  // Whether we currently are in the first stalling cycle of a memory load operation.
 );
@@ -70,15 +71,9 @@ reg [31:0] memory [0:3071];
 reg [31:0] memory_read;
 reg [31:0] prev_read;
 
-always @(posedge clk/* or negedge reset*/) begin
-    /*if(!reset) begin
-        memory_read <= 32'h0;
-        prev_read <= 32'h0;    
-    end
-    else begin*/
+always @(posedge clk) begin
         prev_read <= memory_read;
         memory_read <= memory[word_address];
-    //end
 end
 // ===
 
@@ -107,10 +102,10 @@ wire [11:0] data_bus_word_addr = data_bus_addr[13:2];
 wire [1:0] data_bus_byte_addr = data_bus_addr[1:0];
 
 // Whether a read from the program flash was requested by the data bus controller.
-wire read_requested = (data_bus_mode == 2'b01) && (data_bus_addr < 32'h3000);
+wire read_requested = (data_bus_mode == 2'b01) && (data_bus_select);
 
 // Handle reads with sub-word width
-assign data_bus_data = read_requested ? flash_read() : 32'bz;
+assign data_bus_data = read_requested ? flash_read() : 32'h0;
 
 function [31:0] flash_read();
     case (data_bus_reqw)

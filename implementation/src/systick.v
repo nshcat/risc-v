@@ -2,8 +2,9 @@
 module systick(
     input clk,
     input reset,
-    inout [31:0] data_bus_data,
+    output [31:0] data_bus_read,
     input [31:0] data_bus_addr,
+    input data_bus_select,
     input [1:0] data_bus_mode   // 00: Nothing, 01: Read, 10: Write
 );
 
@@ -31,9 +32,9 @@ reg [31:0] counter_value;
 // ====
 
 // ==== Reading ====
-wire read_requested = (data_bus_mode == 2'b01) && (data_bus_addr == 32'h4030);
+wire read_requested = (data_bus_mode == 2'b01) && data_bus_select;
 
-assign data_bus_data = read_requested ? bus_read() : 32'bz;
+assign data_bus_read = bus_read();
 
 function [31:0] bus_read();
     case (data_bus_addr)

@@ -25,6 +25,9 @@ set_io GPIO_A[13] P9
 set_io GPIO_A[14] T10 
 set_io GPIO_A[15] R10
 
+set_io UART_RX P1
+set_io UART_TX P2
+
 set_io INT0 N3
 set_io INT1 N2
 
