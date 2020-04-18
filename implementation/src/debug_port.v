@@ -58,15 +58,18 @@ end
 reg halted, next_halted;
 reg [5:0] current_state;
 reg [5:0] next_state;
+reg step, next_step; // Single-stepping logic
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
         current_state <= STATE_IDLE;
         halted <= 1'b0;
+        step <= 1'b0;
     end
     else begin
         current_state <= next_state;
-        halted <= next_halted;
+        halted <= (step ? 1'b1 : next_halted);  // When step was turned on, we now have to halt the CPU again.
+        step <= next_step;
     end
 end
 
@@ -149,6 +152,7 @@ always @(*) begin
     next_address_byte = address_byte;
     next_halted = halted;
     next_value = value;
+    next_step = 1'b0;   // We always want step to be turned off after one cycle
     next_value_byte = value_byte;
     next_start_tx = 1'b0; // Turns off start tx strobe after its been on
 
@@ -202,6 +206,29 @@ always @(*) begin
                         next_response[1] = "K";
                         next_state = STATE_SEND_RESPONSE;
                         next_start_tx = 1'b1; // Already start transmitting first byte
+                    end
+
+                    "SS": begin // Single stepping
+                        // Only works if halted
+                        if(halted) begin
+                            next_halted = 1'b0; // We have to stop halting
+                            next_step = 1'b1;   // Remember that we stepped so we can re-halt the CPU afterwards
+
+                            next_response_pos = 3'h0;
+                            next_response_size = 3'd2;
+                            next_response[0] = "O";
+                            next_response[1] = "K";
+                            next_state = STATE_SEND_RESPONSE;
+                            next_start_tx = 1'b1; // Already start transmitting first byte
+                        end
+                        else begin
+                            next_response_pos = 3'h0;
+                            next_response_size = 3'd2;
+                            next_response[0] = "N";
+                            next_response[1] = "O";
+                            next_state = STATE_SEND_RESPONSE;
+                            next_start_tx = 1'b1; // Already start transmitting first byte
+                        end          
                     end
 
                     "PC": begin // Retrieve current PC

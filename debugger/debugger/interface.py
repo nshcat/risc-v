@@ -78,6 +78,13 @@ class DebuggerInterface:
         else:
             raise DebuggerError("Received invalid on-chip debugger state response")
 
+    def step(self):
+        """Perform a single execution step."""
+        if self._state != DebuggerState.HALTED:
+            raise DebuggerStateError("Can only step when CPU execution is halted")
+
+        self.send_command(b'+SS', 2)
+
     def retrieve_pc(self):
         """Retrieve the current program counter value."""
         result = self.send_command(b'+PC', 6)
