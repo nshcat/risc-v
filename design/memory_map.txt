@@ -7,10 +7,17 @@ Detailed I/O space description:
 
 Interrupt controller:
 0x4000      IRQ mask
-0x4004      External interrupt 1 ISR address
-0x4008      External interrupt 2 ISR address
-0x400C      Timer interrupt 1 ISR address
-0x4010      Timer interrupt 2 ISR address
+0x4004      Pending IRQ flags
+0x4008      Index of currently active and handled IRQ flag
+0x400C      Currently active and handled IRQ flag
+
+Extended interrupt controller:
+0x4010      Event mask
+0x4014      Detection mask
+0x4018      Pending event flags
+0x401C      Active event flag
+0x4020      Falling edge detection flags
+0x4024      Rising edge detection flags
 
 SysTick timer:
 0x4030      SysTick tick count

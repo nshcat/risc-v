@@ -8,8 +8,6 @@ module top(
   output LED5,
   output LED6,
   output LED7,
-  input INT0,
-  input INT1,
   output TIM1_CMP,
   output TIM2_CMP,
   inout [15:0] GPIO_A
@@ -36,8 +34,6 @@ microcontroller mc(
   .clk(sysclk),
   .reset(locked),
   .leds_out({LED7, LED6, LED5, LED4, LED3, LED2, LED1, LED0}),
-  .int_ext1(INT0),
-  .int_ext2(INT1),
   .tim1_cmp(TIM1_CMP),
   .tim2_cmp(TIM2_CMP),
   .gpio_port_a(GPIO_A)

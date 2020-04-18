@@ -13,10 +13,16 @@ typedef int int32_t;
 #define IRQ_ACTIVE IO_REG(0x4008)       // Currently active IRQ index
 #define IRQ_ACTIVE_FLAG IO_REG(0x400C)  // Flag that triggered currently active IRQ
 
-#define IRQ_FLAG_EXT1 0b1               // IRQ flag for external interrupt 1
-#define IRQ_FLAG_EXT2 0b10              // IRQ flag for external interrupt 2
-#define IRQ_FLAG_TIM1 0b100             // IRQ flag for timer interrupt 1
-#define IRQ_FLAG_TIM2 0b1000            // IRQ flag for timer interrupt 2
+#define EIC_EVENT_MASK IO_REG(0x4010)   // EIC event mask
+#define EIC_DETECT_MASK IO_REG(0x4014)  // EIC edge detection mask
+#define EIC_FLAGS IO_REG(0x4018)        // EIC pending event flags
+#define EIC_ACTIVE IO_REG(0x401C)       // EIC active event flag
+#define EIC_FALLING IO_REG(0x4020)      // EIC falling edge detection flags
+#define EIC_RISING IO_REG(0x4024)       // EIC rising edge detection flags
+
+#define IRQ_FLAG_TIM1 0b1               // IRQ flag for timer interrupt 1
+#define IRQ_FLAG_TIM2 0b10              // IRQ flag for timer interrupt 2
+#define IRQ_FLAG_EIC 0b100              // IRQ flag for extended interrupt controller
 
 #define TIMER_ENABLE 0x1				// Timer enable flag in timer control register
 #define TIMER_CMP_ENABLE 0x2            // Comparator output enable flag in timer control register
@@ -34,6 +40,8 @@ typedef int int32_t;
 #define TIM2_PRESCV IO_REG(0x40D0)		// Timer 2 prescaler value (read-only)
 #define TIM2_CNTRV IO_REG(0x40D4)		// Timer 2 counter value (read-only)
 
+#define GPIO_INPUT_PIN 0x0
+#define GPIO_OUTPUT_PIN 0x1
 #define GPIO_DDR IO_REG(0x4034)			// GPIO port data direction register (0: Input, 1: Output)
 #define GPIO_IN IO_REG(0x403C)			// GPIO port read values (bits only valid if corresponding pin is in input mode)
 #define GPIO_OUT IO_REG(0x4038)			// GPIO port write values (bits only valid if corresponding pin is in output mode)

@@ -6,7 +6,8 @@ module gpio_port(
     input [31:0] data_bus_addr,
     input [1:0] data_bus_mode,  // 00: Nothing, 01: Read, 10: Write
     input data_bus_select,
-    inout [15:0] gpio_pins
+    inout [15:0] gpio_pins,
+    output [15:0] gpio_pin_state
 );
 
 // ==== Data Bus Registers ====
@@ -74,5 +75,8 @@ always @(posedge clk or negedge reset) begin
         read_data <= sync_in; // Sample synchronized input
     end
 end
+
+// ==== Input pin state for EIC
+assign gpio_pin_state = read_data & ~pin_direction;
 
 endmodule

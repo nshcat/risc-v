@@ -4,10 +4,7 @@ module microcontroller(
 
     output [7:0] leds_out,
     output tim1_cmp, tim2_cmp,
-    inout [15:0] gpio_port_a,
-
-    input int_ext1,
-    input int_ext2
+    inout [15:0] gpio_port_a
 
 `ifdef FEATURE_DBG_PORT
     , // This is ugly, but has to be done
@@ -81,6 +78,7 @@ wire slv_select_tim1;
 wire slv_select_tim2;
 wire slv_select_systick;
 wire slv_select_gpio;
+wire slv_select_eic;
 
 wire [31:0] slv_read_data_pmem;
 wire [31:0] slv_read_data_dmem;
@@ -90,6 +88,7 @@ wire [31:0] slv_read_data_tim1;
 wire [31:0] slv_read_data_tim2;
 wire [31:0] slv_read_data_systick;
 wire [15:0] slv_read_data_gpio;
+wire [15:0] slv_read_data_eic;
 
 `ifdef FEATURE_DBG_PORT
     // The register file is only mapped into the data bus address space if the
@@ -135,6 +134,7 @@ bus_arbiter bus(
     .slv_select_tim1(slv_select_tim1),
     .slv_select_tim2(slv_select_tim2),
     .slv_select_gpio(slv_select_gpio),
+    .slv_select_eic(slv_select_eic),
 
     // Read results from slaves
     .slv_read_data_pmem(slv_read_data_pmem),
@@ -144,7 +144,8 @@ bus_arbiter bus(
     .slv_read_data_systick(slv_read_data_systick),
     .slv_read_data_tim1(slv_read_data_tim1),
     .slv_read_data_tim2(slv_read_data_tim2),
-    .slv_read_data_gpio(slv_read_data_gpio)
+    .slv_read_data_gpio(slv_read_data_gpio),
+    .slv_read_data_eic(slv_read_data_eic)
 
 `ifdef FEATURE_DBG_PORT
     ,
@@ -179,7 +180,7 @@ datapath core(
     .slv_select_icu(slv_select_icu),
     .instr_bus_addr(instr_bus_addr),
     .instr_bus_data(instr_bus_data),
-    .irq_sources({tim2_irq, tim1_irq, int_ext2, int_ext1}),
+    .irq_sources({eic_irq, tim2_irq, tim1_irq}),
     .dbg_pc(dbg_pc)
 
 `ifdef FEATURE_DBG_PORT
@@ -238,7 +239,23 @@ gpio_port gpio_a(
     .data_bus_select(slv_select_gpio),
     .data_bus_addr(slv_address),
     .data_bus_mode(slv_mode),
-    .gpio_pins(gpio_port_a)
+    .gpio_pins(gpio_port_a),
+    .gpio_pin_state(gpio_pin_state)
+);
+
+wire [15:0] gpio_pin_state;
+wire eic_irq;
+
+extended_interrupt_controller eic(
+    .clk(clk),
+    .reset(reset),
+    .eic_irq(eic_irq),
+    .gpio_pin_state(gpio_pin_state),
+    .data_bus_read(slv_read_data_eic),
+    .data_bus_write(slv_write_data[15:0]),
+    .data_bus_select(slv_select_eic),
+    .data_bus_addr(slv_address),
+    .data_bus_mode(slv_mode)
 );
 
 systick stick(

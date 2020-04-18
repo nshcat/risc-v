@@ -39,6 +39,7 @@ module bus_arbiter(
     output slv_select_tim2,
     output slv_select_systick,
     output slv_select_gpio,
+    output slv_select_eic,
     
 
     // Data lines from slave peripherals
@@ -49,7 +50,8 @@ module bus_arbiter(
     input [31:0] slv_read_data_tim1,
     input [31:0] slv_read_data_tim2,
     input [31:0] slv_read_data_systick,
-    input [15:0] slv_read_data_gpio
+    input [15:0] slv_read_data_gpio,
+    input [15:0] slv_read_data_eic
     
 
 `ifdef FEATURE_DBG_PORT
@@ -95,6 +97,7 @@ assign slv_select_tim1 = (slv_address >= 32'h40A0) && (slv_address <= 32'h40B4);
 assign slv_select_tim2 = (slv_address >= 32'h40C0) && (slv_address <= 32'h40D4);
 assign slv_select_systick = (slv_address == 32'h4030);
 assign slv_select_gpio = (slv_address >= 32'h4034) && (slv_address <= 32'h403C);
+assign slv_select_eic = (slv_address >= 32'h4010) && (slv_address <= 32'h4024);
 
 `ifdef FEATURE_DBG_PORT
     `ifndef FEATURE_RV32E
@@ -117,12 +120,13 @@ assign read_data =  slv_select_pmem ? slv_read_data_pmem :
                     (slv_select_systick ? slv_read_data_systick :
                     (slv_select_gpio ? { 16'h0, slv_read_data_gpio } :
                     (slv_select_icu ? slv_read_data_icu :
+                    (slv_select_eic ? { 16'h0, slv_read_data_eic } :
 
 `ifdef FEATURE_DBG_PORT
                     (slv_select_regs ? slv_read_data_regs :
-                    (32'h0)))))))));
+                    (32'h0))))))))));
 `else
-                    (32'h0))))))));
+                    (32'h0)))))))));
 `endif
 
 endmodule

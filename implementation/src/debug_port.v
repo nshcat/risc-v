@@ -33,13 +33,9 @@ parameter STATE_MR_PH2 = 6'h6;          // Doing memory read, phase 2
 parameter STATE_RCV_MW_VAL = 6'h7;      // Receiving value for memory read command
 parameter STATE_MW = 6'h8;              // Executing memory write operation
 
-
-
-
-
-parameter ADDR_READ = 2'h0;   // Operation types used to make reusing of STATE_RCV_ADR
-parameter ADDR_WRITE = 2'h1;  // functionality possible. The state after address receive (MW/MR/BP)
-parameter ADDR_BP = 2'h2;     // is remembered to be transitioned to after address receive completes.
+parameter ADDR_READ = 2'h0;             // Operation types used to make reusing of STATE_RCV_ADR
+parameter ADDR_WRITE = 2'h1;            // functionality possible. The state after address receive (MW/MR/BP)
+parameter ADDR_BP = 2'h2;               // is remembered to be transitioned to after address receive completes.
 
 reg [1:0] addr_op, next_addr_op;
 
