@@ -97,7 +97,7 @@ assign slv_select_tim1 = (slv_address >= 32'h40A0) && (slv_address <= 32'h40B4);
 assign slv_select_tim2 = (slv_address >= 32'h40C0) && (slv_address <= 32'h40D4);
 assign slv_select_systick = (slv_address == 32'h4030);
 assign slv_select_gpio = (slv_address >= 32'h4034) && (slv_address <= 32'h403C);
-assign slv_select_eic = (slv_address >= 32'h4010) && (slv_address <= 32'h4024);
+assign slv_select_eic = (slv_address >= 32'h4010) && (slv_address <= 32'h4028);
 
 `ifdef FEATURE_DBG_PORT
     `ifndef FEATURE_RV32E

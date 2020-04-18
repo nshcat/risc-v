@@ -19,6 +19,7 @@ typedef int int32_t;
 #define EIC_ACTIVE IO_REG(0x401C)       // EIC active event flag
 #define EIC_FALLING IO_REG(0x4020)      // EIC falling edge detection flags
 #define EIC_RISING IO_REG(0x4024)       // EIC rising edge detection flags
+#define EIC_DEBOUNCE IO_REG(0x4028)     // EIC debounce enable flags
 
 #define IRQ_FLAG_TIM1 0b1               // IRQ flag for timer interrupt 1
 #define IRQ_FLAG_TIM2 0b10              // IRQ flag for timer interrupt 2

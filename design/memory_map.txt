@@ -18,6 +18,7 @@ Extended interrupt controller:
 0x401C      Active event flag
 0x4020      Falling edge detection flags
 0x4024      Rising edge detection flags
+0x4028      Debounce enable flags
 
 SysTick timer:
 0x4030      SysTick tick count

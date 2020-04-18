@@ -13,7 +13,7 @@ void handle_eic()
 	{
 	    counter++;
 	    LED_STATE = counter;
-	    delay_ms(120U);
+	    //delay_ms(120U);
 	}
 	
 	// Clear EIC event flag
@@ -34,6 +34,7 @@ int main()
     EIC_DETECT_MASK = 0b1;  // Enable edge detection for pin 1
     EIC_EVENT_MASK = 0b1;   // Enable event handling for pin 1
     EIC_FALLING = 0b1;      // React to falling edges on pin 1
+    EIC_DEBOUNCE = 0b1;     // Enable debouncing on pin 1
     
 	// Enable interrupt handling for EIC events
 	IRQ_MASK = IRQ_FLAG_EIC;

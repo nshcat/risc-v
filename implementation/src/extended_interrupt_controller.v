@@ -21,6 +21,7 @@ reg [15:0] event_flags;     // 0x4018 Pending event flags
 reg [15:0] active_event;    // 0x401C The currently active event. Must be cleared by user code to rearm the EIC.
 reg [15:0] falling_edge;    // 0x4020 Detect falling edges
 reg [15:0] rising_edge;     // 0x4024 Detect rising edges
+reg [15:0] debounce;        // 0x4028 Debounce inputs
 
 wire in_event = (active_event != 16'h0);    // Whether we are currently handling an event.
 wire write_requested = (data_bus_mode == 2'b10) & data_bus_select; // Whether a data bus write is requested
@@ -46,7 +47,8 @@ always @(posedge clk or negedge reset) begin
                 32'h4018: event_flags <= data_bus_write;
                 32'h401C: active_event <= data_bus_write;
                 32'h4020: falling_edge <= data_bus_write;
-                32'h4024: rising_edge <= data_bus_write;     
+                32'h4024: rising_edge <= data_bus_write;
+                32'h4028: debounce <= data_bus_write; 
                 default: begin end     
             endcase
         end
@@ -99,9 +101,31 @@ function [15:0] bus_read();
         32'h4018: bus_read = event_flags;
         32'h401C: bus_read = active_event;
         32'h4020: bus_read = falling_edge;
-        default: bus_read = rising_edge;
+        32'h4024: bus_read = rising_edge;
+        default: bus_read = debounce;
     endcase
 endfunction
+
+// === Debouncer
+
+wire [15:0] all_debounced;
+
+debouncer
+#(.WIDTH(16))
+debnc(
+    .clk(clk),
+    .reset(reset),
+    .raw_in(gpio_pin_state),
+    .debounced_out(all_debounced)
+);
+
+// Decide, based on the debounce enable register, whether to use the raw input or the debounced state
+// for each pin.
+wire [15:0] debounced;
+genvar i;
+for(i = 0; i < 16; i++) begin
+    assign debounced[i] = (debounce[i] ? all_debounced[i] : gpio_pin_state[i]);
+end
 
 // === Edge detector
 
@@ -113,7 +137,7 @@ edge_detector
 uut(
     .clk(clk),
     .reset(reset),
-    .in(gpio_pin_state),
+    .in(debounced),
     .rising_edge(rising_edge),
     .falling_edge(falling_edge),
     .out(detector_out)
