@@ -218,7 +218,6 @@ class Shell(cmd2.Cmd):
         except DebuggerError as error:
             print(f"Failed to execute operation: {str(error)}")
 
-
     def do_connect(self, arg):
         """Connect to SoC using the given serial port"""
         args = arg.split()
@@ -287,6 +286,9 @@ class Shell(cmd2.Cmd):
             if self.state() != DebuggerState.DISCONNECTED:
                 if self.state() == DebuggerState.HALTED:
                     self._interface.resume()
+                    # The CPU might hit a break point again, so for better UX we
+                    # refresh the state
+                    self._interface.refresh_state()
                     self.update_prompt()
                 else:
                     print("CPU is already running")
