@@ -16,7 +16,7 @@ class Shell(cmd2.Cmd):
     _interface = DebuggerInterface()
     _no_shortcut = {'help', 'hide_responses', 'history', 'run_script', 'run_pyscript',
                     'shell', 'set', 'shortcuts', 'show_responses', 'read_memory', 'step_location',
-                    'write_memory', 'edit', 'sl', 'eof'}
+                    'write_memory', 'edit', 'sl', 'eof', 'clear_breakpoint', 'quit'}
     prompt = 'DISCONNECTED> '
 
     def __init__(self, port=None):
@@ -29,7 +29,8 @@ class Shell(cmd2.Cmd):
         super(Shell, self).__init__(
             persistent_history_file=history_file,
             persistent_history_length=history_file_size,
-            shortcuts={'mr': 'read_memory', 'mw': 'write_memory', 'sl': 'step_location'},
+            shortcuts={'mr': 'read_memory', 'mw': 'write_memory', 'sl': 'step_location',
+                       'bc': 'clear_breakpoint'},
             allow_cli_args=False
         )
 
@@ -128,6 +129,18 @@ class Shell(cmd2.Cmd):
         except DebuggerError as error:
             print(f"Failed to execute operation: {str(error)}")
 
+    def do_query_state(self, arg):
+        """Refresh the local debugger state information. Useful when dealing with breakpoints"""
+        if self.state() == DebuggerState.DISCONNECTED:
+            print("Debugger is disconnected")
+            return
+
+        try:
+            self._interface.refresh_state()
+            self.update_prompt()
+        except DebuggerError as error:
+            print(f"Failed to execute operation: {str(error)}")
+
     def do_write_memory(self, arg):
         """Write a word to given memory address"""
         args = arg.split()
@@ -175,7 +188,37 @@ class Shell(cmd2.Cmd):
     def do_hide_responses(self, arg):
         """Hide the raw responses received over the serial connection"""
         self._interface.show_responses = False
-    
+
+    def do_breakpoint(self, arg):
+        """Set hardware break to given flash address"""
+        args = arg.split()
+        if len(args) != 1:
+            print("Expected exactly one argument")
+            print("breakpoint [address]")
+            return
+
+        if self.state() == DebuggerState.DISCONNECTED:
+            print("Debugger is disconnected")
+            return
+
+        try:
+            address = int(arg, 0)
+            self._interface.set_breakpoint(address)
+        except DebuggerError as error:
+            print(f"Failed to execute operation: {str(error)}")
+
+    def do_clear_breakpoint(self, arg):
+        """Clear hardware breakpoint"""
+        if self.state() == DebuggerState.DISCONNECTED:
+            print("Debugger is disconnected")
+            return
+
+        try:
+            self._interface.clear_breakpoint()
+        except DebuggerError as error:
+            print(f"Failed to execute operation: {str(error)}")
+
+
     def do_connect(self, arg):
         """Connect to SoC using the given serial port"""
         args = arg.split()

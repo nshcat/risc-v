@@ -43,6 +43,20 @@ class DebuggerInterface:
     def show_responses(self, value):
         self._show_responses = value
 
+    def set_breakpoint(self, address):
+        """Set the hardware breakpoint to given flash address."""
+
+        # Check alignment
+        if (address % 4) != 0:
+            raise MemoryAddressError("Breakpoint address is not word-aligned")
+
+        command = b'+BP' + serialize_integer(address, DataType.WORD)
+        self.send_command(command, 2)
+
+    def clear_breakpoint(self):
+        """Clear hardware breakpoint."""
+        self.send_command(b'+BC', 2)
+
     def send_command(self, contents, response_size):
         """
         Send a command to the on-chip debugger and expect a response of given size.
@@ -66,6 +80,13 @@ class DebuggerInterface:
             return response[2:]
         else:
             raise RejectedCommandError(f"On-chip debugger rejected command \"{contents[:3].decode('utf-8')}\"")
+
+    def refresh_state(self):
+        """
+        Refresh local debugger state information by re-querying the on-chip debugger.
+        This is useful when dealing with breakpoints.
+        """
+        self._state = self.retrieve_state()
 
     def retrieve_state(self):
         """Retrieve the current state the on-chip debugger is in."""

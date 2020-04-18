@@ -24,52 +24,57 @@ module debug_port(
 
 // ==== State machine handling
 parameter STATE_IDLE = 6'h0;
-parameter STATE_RCV_COMMAND_1 = 6'h1; // Receiving first command char
-parameter STATE_RCV_COMMAND_2 = 6'h2; // Receiving second command char
-parameter STATE_SEND_RESPONSE = 6'h3; // Receiving second command char
-parameter STATE_RCV_MEM_ADR = 6'h4; // Receiving source address for memory read/write command
-parameter STATE_MR_PH1 = 6'h5; // Doing memory read, phase 1
-parameter STATE_MR_PH2 = 6'h6; // Doing memory read, phase 2
-parameter STATE_RCV_MW_VAL = 6'h7; // Receiving value for memory read command
-parameter STATE_MW = 6'h8; // Executing memory write operation
+parameter STATE_RCV_COMMAND_1 = 6'h1;   // Receiving first command char
+parameter STATE_RCV_COMMAND_2 = 6'h2;   // Receiving second command char
+parameter STATE_SEND_RESPONSE = 6'h3;   // Receiving second command char
+parameter STATE_RCV_ADR = 6'h4;         // Receiving address for memory read/write command and breakpoint creation
+parameter STATE_MR_PH1 = 6'h5;          // Doing memory read, phase 1
+parameter STATE_MR_PH2 = 6'h6;          // Doing memory read, phase 2
+parameter STATE_RCV_MW_VAL = 6'h7;      // Receiving value for memory read command
+parameter STATE_MW = 6'h8;              // Executing memory write operation
 
 
 
 
 
-parameter MEM_OP_READ = 1'h0;   // Memory access types used to make reusing of STATE_RCV_MEM_ADR
-parameter MEM_OP_WRITE = 1'h1;  // Functionality possible. The state after address receive (MW/MR)
-                                // is remembered to be transitioned to after address receive completes.
+parameter ADDR_READ = 2'h0;   // Operation types used to make reusing of STATE_RCV_ADR
+parameter ADDR_WRITE = 2'h1;  // functionality possible. The state after address receive (MW/MR/BP)
+parameter ADDR_BP = 2'h2;     // is remembered to be transitioned to after address receive completes.
 
-reg mem_op, next_mem_op;
+reg [1:0] addr_op, next_addr_op;
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
-        mem_op <= MEM_OP_READ;
+        addr_op <= ADDR_READ;
     end
     else begin
-        mem_op <= next_mem_op;
+        addr_op <= next_addr_op;
     end
 end
-
-
 
 
 reg halted, next_halted;
 reg [5:0] current_state;
 reg [5:0] next_state;
 reg step, next_step; // Single-stepping logic
+reg [14:0] breakpoint, next_breakpoint; // Breakpoint logic
+reg breakpoint_enabled, next_breakpoint_enabled;
+reg next_ignore_breakpoint;
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
         current_state <= STATE_IDLE;
         halted <= 1'b0;
         step <= 1'b0;
+        breakpoint <= 15'h0;
+        breakpoint_enabled <= 1'b0;
     end
     else begin
         current_state <= next_state;
-        halted <= (step ? 1'b1 : next_halted);  // When step was turned on, we now have to halt the CPU again.
+        halted <= (~next_ignore_breakpoint & next_breakpoint_enabled & (next_breakpoint == dbg_pc[14:0])) ? 1'b1 : (step ? 1'b1 : next_halted);  // When step was turned on, we now have to halt the CPU again.
         step <= next_step;
+        breakpoint <= next_breakpoint;
+        breakpoint_enabled <= next_breakpoint_enabled;
     end
 end
 
@@ -144,13 +149,16 @@ always @(*) begin
     // Defaults to avoid latches
     next_state = current_state;
     next_data = 8'h0;
-    next_mem_op = mem_op;
+    next_addr_op = addr_op;
+    next_breakpoint = breakpoint;
     next_command = command;
     next_address = address;
     next_response_pos = response_pos;
     next_response_size = response_size;
     next_address_byte = address_byte;
+    next_breakpoint_enabled = breakpoint_enabled;
     next_halted = halted;
+    next_ignore_breakpoint = 1'b0;
     next_value = value;
     next_step = 1'b0;   // We always want step to be turned off after one cycle
     next_value_byte = value_byte;
@@ -200,6 +208,7 @@ always @(*) begin
 
                     "RE": begin // Resume execution
                         next_halted = 1'b0;
+                        next_ignore_breakpoint = 1'b1; // This is important in case we are currently halting on a break point
                         next_response_pos = 3'h0;
                         next_response_size = 3'd2;
                         next_response[0] = "O";
@@ -213,7 +222,7 @@ always @(*) begin
                         if(halted) begin
                             next_halted = 1'b0; // We have to stop halting
                             next_step = 1'b1;   // Remember that we stepped so we can re-halt the CPU afterwards
-
+                            next_ignore_breakpoint = 1'b1; // This is important in case we are currently halting on a break point
                             next_response_pos = 3'h0;
                             next_response_size = 3'd2;
                             next_response[0] = "O";
@@ -256,14 +265,31 @@ always @(*) begin
 
                     "MR": begin // Memory read
                         next_address_byte = 2'd0;
-                        next_mem_op = MEM_OP_READ;
-                        next_state = STATE_RCV_MEM_ADR;
+                        next_addr_op = ADDR_READ;
+                        next_state = STATE_RCV_ADR;
                     end
 
                     "MW": begin // Memory write
                         next_address_byte = 2'd0;
-                        next_mem_op = MEM_OP_WRITE;
-                        next_state = STATE_RCV_MEM_ADR;
+                        next_addr_op = ADDR_WRITE;
+                        next_state = STATE_RCV_ADR;
+                    end
+
+                    "BP": begin // Breakpoint set
+                        next_address_byte = 2'd0;
+                        next_addr_op = ADDR_BP;
+                        next_state = STATE_RCV_ADR;
+                    end
+
+                    "BC": begin // Breakpoint clear
+                            next_breakpoint_enabled = 1'b0;
+                            next_breakpoint = 15'h0;
+                            next_response_pos = 3'h0;
+                            next_response_size = 3'd2;
+                            next_response[0] = "O";
+                            next_response[1] = "K";
+                            next_state = STATE_SEND_RESPONSE;
+                            next_start_tx = 1'b1; // Already start transmitting first byte
                     end
 
                     default: begin
@@ -316,7 +342,7 @@ always @(*) begin
             end
         end
 
-        STATE_RCV_MEM_ADR: begin
+        STATE_RCV_ADR: begin
             if(rx_done) begin
                 next_address_byte = address_byte + 2'd1;
 
@@ -333,10 +359,21 @@ always @(*) begin
                     2'd3: begin
                         next_address = { address[31:8], rx_data };
 
+                        // Is the received address a new breakpoint?
+                        if(addr_op == ADDR_BP) begin
+                            next_breakpoint = next_address[14:0];
+                            next_breakpoint_enabled = 1'b1;
+                            next_response_pos = 3'h0;
+                            next_response_size = 3'd2;
+                            next_response[0] = "O";
+                            next_response[1] = "K";
+                            next_state = STATE_SEND_RESPONSE;
+                            next_start_tx = 1'b1; // Already start transmitting first byte
+                        end
                         // Is the received address part of a memory write operation?
                         // If so, we can't yet fail if the CPU is not halted, since the debugger
                         // will still send the new memory value.
-                        if(mem_op == MEM_OP_WRITE) begin
+                        else if(addr_op == ADDR_WRITE) begin
                             // Begin receiving the value to write to the requested memory location
                             next_value_byte = 2'h0;
                             next_state = STATE_RCV_MW_VAL;
@@ -457,7 +494,12 @@ sync(
 
 // ==== Debug signal generation
 assign ds_cpu_reset = 1'b1;
-assign ds_cpu_halt = halted;
+
+// We have to use the breakpoint logic here, since otherwise it would only stop after the
+// offending instruction, since halted would only be set to 1'b1 on the rising edge, which is too late
+// to stop increment of the PC and register write back
+// We have to exclude the case of step being true though, since otherwise single-stepping wouldn't work.
+assign ds_cpu_halt = next_halted | (~next_ignore_breakpoint & next_breakpoint_enabled & (dbg_pc[14:0] == next_breakpoint));
 
 // ==== Debug bus master control signal generation
 assign dbg_address = address;
