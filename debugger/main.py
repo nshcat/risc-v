@@ -1,4 +1,4 @@
-import cmd
+import cmd2
 import sys
 import pathlib
 import os.path
@@ -9,25 +9,22 @@ from debugger import *
 history_file = os.path.expanduser('~/.local/share/rvdbg/.history')
 history_file_size = 1024
 
-
-class Shell(cmd.Cmd):
+class Shell(cmd2.Cmd):
     """Main debugger shell implementation"""
 
     _interface = DebuggerInterface()
+    _no_shortcut = {'help', 'hide_responses', 'history', 'run_script', 'run_pyscript',
+                    'shell', 'set', 'shortcuts', 'show_responses', 'read_memory',
+                    'write_memory'}
     prompt = 'DISCONNECTED> '
 
-    def preloop(self):
-        # Recover readline command history
-        if os.path.exists(history_file):
-            readline.read_history_file(history_file)
-    
-    def postloop(self):
-        # Save command history to history file for later retrieval
-        path = pathlib.Path(history_file)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        readline.set_history_length(history_file_size)
-        readline.write_history_file(history_file)
-    
+    def __init__(self):
+        super(Shell, self).__init__(
+            persistent_history_file=history_file,
+            persistent_history_length=history_file_size,
+            shortcuts={'mr': 'read_memory', 'mw': 'write_memory'}
+        )
+
     def update_prompt(self):
         """Update the current prompt according to the debugger state"""
         if self.state() == DebuggerState.DISCONNECTED:
@@ -41,6 +38,37 @@ class Shell(cmd.Cmd):
             self._interface.disconnect()
 
         return True
+
+    def precmd(self, statement: cmd2.Statement) -> cmd2.Statement:
+        """Try to complete entered, incomplete commands based on best-fit"""
+        identifier = statement.command
+
+        # Check if entered command is a direct fit. If so, we do not do anything here.
+        is_direct_match = (identifier in self.get_all_commands())\
+                          or (identifier in self.macros)\
+                          or (identifier in self.aliases)
+
+        # Continue of the given command is direct match
+        if is_direct_match:
+            return statement
+
+        # Otherwise, it clearly is not a registered command, macro or alias
+        # We now try to find all commands that have the given input as a prefix.
+        # We disregard macros and aliases, and we only auto-complete if there is no ambiguity.
+        matching_commands = [cmd for cmd in self.get_all_commands() if cmd.startswith(identifier) and cmd not in self._no_shortcut]
+        if len(matching_commands) == 1:
+            return cmd2.Statement(statement.args,
+                              raw=statement.raw,
+                              command=matching_commands[0],
+                              arg_list=statement.arg_list,
+                              multiline_command=statement.multiline_command,
+                              terminator=statement.terminator,
+                              suffix=statement.suffix,
+                              pipe_to=statement.pipe_to,
+                              output=statement.output,
+                              output_to=statement.output_to)
+        else:
+            return statement
 
     def state(self):
         """Retrieve current debugger interface state"""
@@ -138,7 +166,7 @@ class Shell(cmd.Cmd):
         except DebuggerError as error:
             print(f"Failed to connect to debugger: {str(error)}")
 
-    def do_show_pc(self, arg):
+    def do_pc(self, arg):
         """Show current program counter value"""
         try:
             pc = self._interface.retrieve_pc()
@@ -195,10 +223,6 @@ class Shell(cmd.Cmd):
         except DebuggerError as error:
             print(f"Failed to execute operation: {str(error)}")
 
-    def do_r(self, arg):
-        """Starts or resumes execution of the CPU"""
-        self.do_resume(arg)
-
 
 if __name__ == "__main__": 
-    Shell().cmdloop()
+    sys.exit(Shell().cmdloop())
