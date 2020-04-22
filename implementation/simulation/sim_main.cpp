@@ -62,6 +62,7 @@ int main(int argc, char** argv, char** env) {
     //tb->rst = !0;
     tb->clk = 0;
 	tb->reset = 1;
+	tb->gpio_port_a = 0xFFFF;
 	main_time++;
 
 	tb->eval();

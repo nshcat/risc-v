@@ -21,18 +21,19 @@ always @(posedge clk or negedge reset) begin
     end
 end
 
-reg delay;                  // Flag used to delay edge detection after a reset. This avoids wrongly
-                            // detected edges, since the initial state of previous is always 0, so sampling
-                            // anything other than 0 would immediately detect an edge that isnt present.
-wire [WIDTH-1:0] delay_mask = {WIDTH{~delay}};
+
+reg [2:0] delay;    // Delay counter. After a reset, we have to delay edge detection for four cycles, since the GPIO input
+                    // is delayed by three cycles because of the input synchronizer, so we read the actual previous value
+                    // on the fourth cycle. We count this up to 3'h4.
+wire [WIDTH-1:0] delay_mask = {WIDTH{(delay == 3'h4)}};
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
-        delay <= 1'h1;
+        delay <= 3'h0;
     end
     else begin
-        if(delay == 1'h1) begin
-            delay <= 1'h0;
+        if(delay != 3'h4) begin
+            delay <= delay + 3'h1;
         end
     end
 end
