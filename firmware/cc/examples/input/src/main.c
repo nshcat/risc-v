@@ -13,7 +13,6 @@ void handle_eic()
 	{
 	    counter++;
 	    LED_STATE = counter;
-	    //delay_ms(120U);
 	}
 	
 	// Clear EIC event flag
