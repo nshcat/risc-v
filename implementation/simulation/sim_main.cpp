@@ -62,8 +62,7 @@ int main(int argc, char** argv, char** env) {
     //tb->rst = !0;
     tb->clk = 0;
 	tb->reset = 1;
-	tb->int_ext1 = 1;
-	tb->int_ext2 = 1;
+	tb->gpio_port_a = 0xFFFF;
 	main_time++;
 
 	tb->eval();
@@ -96,15 +95,15 @@ int main(int argc, char** argv, char** env) {
         main_time++;  // Time passes...
 			
         // Toggle clocks and such
-		if((main_time % 10) == 2 && main_time == 152)
-			tb->int_ext1 = 0;
+		/*if((main_time % 10) == 2 && main_time == 152)
+			tb->int_ext1 = 0;*/
 
         if ((main_time % 10) == 3) {
             tb->clk = 1;
         }
         if ((main_time % 10) == 8) {
             tb->clk = 0;
-			tb->int_ext1 =1;
+			//tb->int_ext1 =1;
         }
 
         // Evaluate model

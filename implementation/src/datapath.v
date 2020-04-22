@@ -34,8 +34,8 @@ module datapath(
     output [31:0] instr_bus_addr,
     input [31:0] instr_bus_data,
 
-    // Interrupts signals
-    input [3:0] irq_sources,
+    // Interrupt signals (eic_irq, tim2_irq, tim1_irq)
+    input [2:0] irq_sources,
 
     // The current pc, for the debugging port
     output [31:0] dbg_pc
@@ -60,41 +60,39 @@ end
 reg icu_in_isr;                 // Whether the CPU is currently inside a ISR
 reg [31:0] icu_ipc;             // Interrupt process counter, used to restore program counter after IRQ
 
-reg [3:0] icu_irq_mask;         // Address: 0x4000 IRQ mask used to enable and disable interrupt handling for certain sources
-reg [3:0] icu_irq_flags;        // Address: 0x4004 Main IRQ flags register.
+reg [2:0] icu_irq_mask;         // Address: 0x4000 IRQ mask used to enable and disable interrupt handling for certain sources
+reg [2:0] icu_irq_flags;        // Address: 0x4004 Main IRQ flags register.
                                 // A set flag represents an interrupt request. ISRs have to clear the flags.
-reg [3:0] icu_active_irq;       // Address: 0x4008 Which IRQ is currently being handled (stored as index in binary, not as a flag)
-reg [3:0] icu_active_flag;      // Address: 0x400C Which IRQ is currently being handled (stored as flag that triggered it.
+reg [2:0] icu_active_irq;       // Address: 0x4008 Which IRQ is currently being handled (stored as index in binary, not as a flag)
+reg [2:0] icu_active_flag;      // Address: 0x400C Which IRQ is currently being handled (stored as flag that triggered it.
                                 // This is useful for general handlers, since it makes clearing the flag easier)
 
-wire [3:0] icu_new_irq_flags;   // The new value of irq flags: Sampled and already set flags combined. This is required since we want to do
+wire [2:0] icu_new_irq_flags;   // The new value of irq flags: Sampled and already set flags combined. This is required since we want to do
                                 // a lot of actions on a single clock edge. All IRQ decisions should be based on this value, since it already
                                 // includes the newest IRQ source sample.
 
 assign icu_new_irq_flags = icu_irq_flags | ~(irq_sources);  // Sample combinatorially     
 
-wire [3:0] icu_irq_flags_masked = icu_new_irq_flags & icu_irq_mask; // Masked off IRQ flags
-wire icu_triggered = (icu_irq_flags_masked != 4'h0) && !icu_in_isr && !stall; // Whether an interrupt handling sequence was triggered. Note that interrupts are not triggered when stalled
+wire [2:0] icu_irq_flags_masked = icu_new_irq_flags & icu_irq_mask; // Masked off IRQ flags
+wire icu_triggered = (icu_irq_flags_masked != 3'h0) && !icu_in_isr && !stall; // Whether an interrupt handling sequence was triggered. Note that interrupts are not triggered when stalled
 
 // The decimal index of the next triggered ISR. This will only hold a valid value if an IRQ was actually triggered.
-function [3:0] icu_triggered_isr();
+function [2:0] icu_triggered_isr();
     casez (icu_irq_flags_masked)
-        4'b???1: icu_triggered_isr = 4'h0;
-        4'b??10: icu_triggered_isr = 4'h1;
-        4'b?100: icu_triggered_isr = 4'h2;
-        4'b1000: icu_triggered_isr = 4'h3;
-        default: icu_triggered_isr = 4'h0;
+        3'b??1: icu_triggered_isr = 3'h0;
+        3'b?10: icu_triggered_isr = 3'h1;
+        3'b100: icu_triggered_isr = 3'h2;
+        default: icu_triggered_isr = 3'h0;
     endcase
 endfunction
 
 // The flag corresponding to the triggered ISR. This will only hold a valid value if an IRQ was actually triggered.
-function [3:0] icu_triggered_flag();
+function [2:0] icu_triggered_flag();
     casez (icu_irq_flags_masked)
-        4'b???1: icu_triggered_flag = 4'b1;
-        4'b??10: icu_triggered_flag = 4'b10;
-        4'b?100: icu_triggered_flag = 4'b100;
-        4'b1000: icu_triggered_flag = 4'b1000;
-        default: icu_triggered_flag = 4'b0;
+        3'b??1: icu_triggered_flag = 3'b1;
+        3'b?10: icu_triggered_flag = 3'b10;
+        3'b100: icu_triggered_flag = 3'b100;
+        default: icu_triggered_flag = 3'b0;
     endcase
 endfunction
 
@@ -106,26 +104,26 @@ assign slv_read_data_icu = icu_bus_read();
 
 function [31:0] icu_bus_read();
     case (slv_address)
-        32'h4000: icu_bus_read = { 28'h0, icu_irq_mask };
-        32'h4004: icu_bus_read = { 28'h0, icu_irq_flags };
-        32'h4008: icu_bus_read = { 28'h0, icu_active_irq };
-        default: icu_bus_read = { 28'h0, icu_active_flag };
+        32'h4000: icu_bus_read = { 29'h0, icu_irq_mask };
+        32'h4004: icu_bus_read = { 29'h0, icu_irq_flags };
+        32'h4008: icu_bus_read = { 29'h0, icu_active_irq };
+        default: icu_bus_read = { 29'h0, icu_active_flag };
     endcase
 endfunction
 
 always @(posedge clk or negedge reset) begin
     if(!reset) begin
-        icu_irq_mask <= 4'b0000;
-        icu_irq_flags <= 4'b0000;
-        icu_active_irq <= 4'b0000;
-        icu_active_flag <= 4'b0000;
+        icu_irq_mask <= 3'b000;
+        icu_irq_flags <= 3'b000;
+        icu_active_irq <= 3'b000;
+        icu_active_flag <= 3'b000;
         icu_in_isr <= 1'b0;
     end
     else begin
         if(icu_write_requested) begin
             case (slv_address) // TODO in this case, we still need to sample!
-                32'h4000: icu_irq_mask <= slv_write_data[3:0];
-                default: icu_irq_flags <= slv_write_data[3:0];
+                32'h4000: icu_irq_mask <= slv_write_data[2:0];
+                default: icu_irq_flags <= slv_write_data[2:0];
             endcase
         end
         else if(~ds_cpu_halt) begin
