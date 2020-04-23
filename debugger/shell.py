@@ -4,6 +4,7 @@ import pathlib
 import os.path
 import readline
 from debugger import *
+from decorators import *
 
 # History file management
 history_file = os.path.expanduser('~/.local/share/rvdbg/.history')
@@ -87,212 +88,128 @@ class Shell(cmd2.Cmd):
         """Retrieve current debugger interface state"""
         return self._interface.state
 
+    @debugger_command("step_location", argument_count=0)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
+    @require_state(DebuggerState.HALTED, "Can only single step when CPU execution is halted")
     def do_step_location(self, arg):
         """Perform single step and show new location"""
         self.do_step(arg)
         self.do_location(arg)
 
+    @debugger_command("step", argument_count=0)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
+    @require_state(DebuggerState.HALTED, "Can only single step when CPU execution is halted")
     def do_step(self, arg):
         """Perform a single execution step"""
-        if self.state() == DebuggerState.DISCONNECTED:
-            print("Debugger is disconnected")
-            return
-
-        if self.state() != DebuggerState.HALTED:
-            print("Can only single step when CPU execution is halted")
-            return
-
         self._interface.step()
 
+    @debugger_command("location", argument_count=0)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
+    @require_state(DebuggerState.HALTED, "Can't show position in firmware when CPU is running. Halt execution first.")
     def do_location(self, arg):
         """Show the current location in the firmware"""""
-        
-        if self.state() != DebuggerState.HALTED:
-            print("Can't show position in firmware when CPU is running. Halt execution first.")
-            return
+        # Retrieve the PC
+        pc = self._interface.retrieve_pc()
 
-        try:
-            # Retrieve the PC
-            pc = self._interface.retrieve_pc()
+        # Determine start. we want to show 5 lines in total with the current
+        # instruction in the middle. But when the PC is close to, lets say, 0x0,
+        # we cant simply subtract 8 byte from it.
+        start_address = max(pc - 8, 0)
 
-            # Determine start. we want to show 5 lines in total with the current
-            # instruction in the middle. But when the PC is close to, lets say, 0x0,
-            # we cant simply subtract 8 byte from it.
-            start_address = max(pc - 8, 0)
+        # Read memory block from flash memory. We read five instructions, each four bytes long.
+        instructions = self._interface.read_memory_block(start_address, 5*4)
 
-            # Read memory block from flash memory. We read five instructions, each four bytes long.
-            instructions = self._interface.read_memory_block(start_address, 5*4)
+        # Format assembly view
+        print(format_assembly(start_address, pc, instructions))
 
-            # Format assembly view
-            print(format_assembly(start_address, pc, instructions))
-
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
-
+    @debugger_command("query_state", argument_count=0)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
     def do_query_state(self, arg):
-        """Refresh the local debugger state information. Useful when dealing with breakpoints"""
-        if self.state() == DebuggerState.DISCONNECTED:
-            print("Debugger is disconnected")
-            return
+        self._interface.refresh_state()
+        self.update_prompt()
 
-        try:
-            self._interface.refresh_state()
-            self.update_prompt()
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
-
-    def do_write_memory(self, arg):
+    @debugger_command("write_memory [destination] [value]", argument_count=2)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
+    @require_state(DebuggerState.HALTED, "Can't perform memory write on running CPU. Halt execution first.")
+    def do_write_memory(self, args):
         """Write a word to given memory address"""
-        args = arg.split()
-        
-        if len(args) != 2:
-            print("Expected exactly two arguments")
-            print("write_memory [destination] [value]")
-            return
-        
-        if self.state() != DebuggerState.HALTED:
-            print("Can't perform memory write on running CPU. Halt execution first.")
-            return
+        address = int(args[0], 0)
+        value = int(args[1], 0)
+        self._interface.write_memory(address, value)
 
-        try:
-            # We use radix 0 here to allow the user to use any base they desire.
-            address = int(args[0], 0)
-            value = int(args[1], 0)
-            self._interface.write_memory(address, value)
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
-            
-    def do_read_memory(self, arg):
-        """Read word from given memory address"""
-        if self.state() != DebuggerState.HALTED:
-            print("Can't perform memory read on running CPU. Halt execution first.")
-            return
+    @debugger_command("read_memory [address]", argument_count=1)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
+    @require_state(DebuggerState.HALTED, "Can't perform memory read on running CPU. Halt execution first.")
+    def do_read_memory(self, args):
+        address = int(args[0], 0)
+        result = self._interface.read_memory(address)
+        print(f"Memory read result: 0x{format(result, '08x')}")
 
-        args = arg.split()
-        if len(args) != 1:
-            print("Expected exactly one argument")
-            print("read_memory [source]")
-            return
-
-        try:
-            address = int(args[0], 0)
-            result = self._interface.read_memory(address)
-            print(f"Memory read result: 0x{format(result, '08x')}")
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
-
+    @debugger_command("show_responses", argument_count=0)
     def do_show_responses(self, arg):
         """Show the raw responses received over the serial connection"""
         self._interface.show_responses = True
-        
+
+    @debugger_command("hide_responses", argument_count=0)
     def do_hide_responses(self, arg):
         """Hide the raw responses received over the serial connection"""
         self._interface.show_responses = False
 
-    def do_breakpoint(self, arg):
+    @debugger_command("breakpoint [address]", argument_count=1)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
+    def do_breakpoint(self, args):
         """Set hardware break to given flash address"""
-        args = arg.split()
-        if len(args) != 1:
-            print("Expected exactly one argument")
-            print("breakpoint [address]")
-            return
+        address = int(args[0], 0)
+        self._interface.set_breakpoint(address)
 
-        if self.state() == DebuggerState.DISCONNECTED:
-            print("Debugger is disconnected")
-            return
-
-        try:
-            address = int(arg, 0)
-            self._interface.set_breakpoint(address)
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
-
+    @debugger_command("clear_breakpoint", argument_count=0)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
     def do_clear_breakpoint(self, arg):
         """Clear hardware breakpoint"""
-        if self.state() == DebuggerState.DISCONNECTED:
-            print("Debugger is disconnected")
-            return
+        self._interface.clear_breakpoint()
 
-        try:
-            self._interface.clear_breakpoint()
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
-
-    def do_connect(self, arg):
+    @debugger_command("connect [port]", argument_count=1)
+    @require_state(DebuggerState.DISCONNECTED, "Can't connect: Already connected")
+    def do_connect(self, args):
         """Connect to SoC using the given serial port"""
-        args = arg.split()
-        if len(args) != 1:
-            print("Expected exactly one argument")
-            print("connect [port]")
-            return
+        self._interface.connect(args[0])
+        self.update_prompt()
 
-        if self.state() != DebuggerState.DISCONNECTED:
-            print("Can't connect: Already connected")
-            return
-
-        try:
-            self._interface.connect(args[0])
-            # Connecting can change the debugger state
-            self.update_prompt()
-        except DebuggerError as error:
-            print(f"Failed to connect to debugger: {str(error)}")
-
+    @debugger_command("pc", argument_count=0)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
     def do_pc(self, arg):
         """Show current program counter value"""
-        try:
-            pc = self._interface.retrieve_pc()
-            print(f"Current PC value: 0x{format(pc, '08x')}")
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
+        pc = self._interface.retrieve_pc()
+        print(f"Current PC value: 0x{format(pc, '08x')}")
 
+    @debugger_command("halt", argument_count=0)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
+    @exclude_state(DebuggerState.HALTED, "CPU is already halted")
     def do_halt(self, arg):
         """Halts execution of the CPU, if running"""
-        try:
-            if self.state() != DebuggerState.DISCONNECTED:
-                if self.state() != DebuggerState.HALTED:
-                    self._interface.halt()
-                    self.update_prompt()
-                else:
-                    print("CPU is already halted")
-            else:
-                print("Debugger is disconnected")
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
+        self._interface.halt()
+        self.update_prompt()
 
-    def do_disassemble(self, arg):
+    @debugger_command("disassemble [start address] [length]", argument_count=2)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
+    def do_disassemble(self, args):
         """Disassemble a section of the loaded firmware"""
-        args = arg.split()
+        start_address = int(args[0], 0)
+        length = int(args[1], 0)
 
-        if len(args) != 2:
-            print("Expected exactly 2 arguments")
-            print("disassemble [start address] [length]")
-            return
+        # Read instructions
+        instructions = self._interface.read_memory_block(start_address, length)
 
-        try:
-            start_address = int(args[0], 0)
-            length = int(args[1], 0)
+        # Format it
+        print(format_assembly(start_address, None, instructions))
 
-            # Read instructions
-            instructions = self._interface.read_memory_block(start_address, length)
-
-            # Format it
-            print(format_assembly(start_address, None, instructions))
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
-
+    @debugger_command("resume", argument_count=0)
+    @exclude_state(DebuggerState.DISCONNECTED, "Debugger is disconnected")
+    @require_state(DebuggerState.HALTED, "CPU is already running")
     def do_resume(self, arg):
         """Starts or resumes execution of the CPU"""
-        try:
-            if self.state() != DebuggerState.DISCONNECTED:
-                if self.state() == DebuggerState.HALTED:
-                    self._interface.resume()
-                    # The CPU might hit a break point again, so for better UX we
-                    # refresh the state
-                    self._interface.refresh_state()
-                    self.update_prompt()
-                else:
-                    print("CPU is already running")
-            else:
-                print("Debugger is disconnected")
-        except DebuggerError as error:
-            print(f"Failed to execute operation: {str(error)}")
+        self._interface.resume()
+        # The CPU might hit a break point again, so for better UX we
+        # refresh the state
+        self._interface.refresh_state()
+        self.update_prompt()
